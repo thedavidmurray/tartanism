@@ -51,6 +51,68 @@ const TILE_SIZES: Record<TileSize, { repeats: number; name: string; inches: stri
 };
 
 // ============================================================================
+// COLOR PRESETS
+// ============================================================================
+
+const COLOR_PRESETS: Record<string, { name: string; colors: string[]; description: string }> = {
+  all: {
+    name: 'All Colors',
+    colors: Object.keys(TARTAN_COLORS),
+    description: 'Full 48-color palette'
+  },
+  traditional: {
+    name: 'Traditional Highland',
+    colors: ['B', 'DB', 'NB', 'R', 'DR', 'G', 'DG', 'HG', 'K', 'W', 'Y', 'GD'],
+    description: 'Classic Scottish tartan colors'
+  },
+  blackWatch: {
+    name: 'Black Watch',
+    colors: ['DB', 'NB', 'DG', 'HG', 'K', 'B', 'G'],
+    description: 'Dark military style'
+  },
+  royalStewart: {
+    name: 'Royal Stewart',
+    colors: ['R', 'CR', 'B', 'Y', 'K', 'W', 'G'],
+    description: 'Iconic royal tartan colors'
+  },
+  earthTones: {
+    name: 'Earth Tones',
+    colors: ['BR', 'LBR', 'DBR', 'TN', 'RU', 'CB', 'OG', 'HG', 'CW', 'ST', 'GD'],
+    description: 'Natural, warm colors'
+  },
+  jewels: {
+    name: 'Jewel Tones',
+    colors: ['DP', 'VI', 'DB', 'RB', 'DR', 'DG', 'GD', 'AM'],
+    description: 'Rich, saturated colors'
+  },
+  muted: {
+    name: 'Muted/Ancient',
+    colors: ['LB', 'LG', 'LR', 'LY', 'GY', 'LGY', 'TN', 'CW', 'LV', 'LO'],
+    description: 'Soft, faded tones'
+  },
+  modern: {
+    name: 'Modern Bright',
+    colors: ['B', 'R', 'G', 'Y', 'O', 'P', 'PK', 'TL', 'W', 'K'],
+    description: 'Vivid contemporary colors'
+  },
+  monochrome: {
+    name: 'Monochrome',
+    colors: ['K', 'DGY', 'GY', 'LGY', 'CH', 'W', 'CW'],
+    description: 'Black, white, and grays'
+  },
+  warmth: {
+    name: 'Warm Sunset',
+    colors: ['R', 'LR', 'CR', 'O', 'LO', 'DO', 'Y', 'GD', 'AM', 'PK', 'RU'],
+    description: 'Reds, oranges, yellows'
+  },
+  cool: {
+    name: 'Cool Ocean',
+    colors: ['B', 'LB', 'DB', 'AB', 'RB', 'NB', 'TL', 'G', 'LG', 'P', 'LV'],
+    description: 'Blues, greens, purples'
+  },
+};
+
+// ============================================================================
 // CANVAS RENDERER
 // ============================================================================
 
@@ -316,7 +378,7 @@ function ConfigPanel({
           <input
             type="range"
             min="2"
-            max="8"
+            max="12"
             value={config.colorMin}
             onChange={e => onChange({ ...config, colorMin: parseInt(e.target.value) })}
             className="slider flex-1"
@@ -326,7 +388,7 @@ function ConfigPanel({
           <input
             type="range"
             min="2"
-            max="8"
+            max="12"
             value={config.colorMax}
             onChange={e => onChange({ ...config, colorMax: parseInt(e.target.value) })}
             className="slider flex-1"
@@ -340,8 +402,8 @@ function ConfigPanel({
         <div className="flex gap-2 items-center">
           <input
             type="range"
-            min="3"
-            max="16"
+            min="2"
+            max="24"
             value={config.stripeMin}
             onChange={e => onChange({ ...config, stripeMin: parseInt(e.target.value) })}
             className="slider flex-1"
@@ -350,8 +412,8 @@ function ConfigPanel({
           <span className="text-gray-500">to</span>
           <input
             type="range"
-            min="3"
-            max="16"
+            min="2"
+            max="24"
             value={config.stripeMax}
             onChange={e => onChange({ ...config, stripeMax: parseInt(e.target.value) })}
             className="slider flex-1"
@@ -366,7 +428,7 @@ function ConfigPanel({
           <input
             type="range"
             min="2"
-            max="48"
+            max="96"
             step="2"
             value={config.threadMin}
             onChange={e => onChange({ ...config, threadMin: parseInt(e.target.value) })}
@@ -377,7 +439,7 @@ function ConfigPanel({
           <input
             type="range"
             min="2"
-            max="48"
+            max="96"
             step="2"
             value={config.threadMax}
             onChange={e => onChange({ ...config, threadMax: parseInt(e.target.value) })}
@@ -392,8 +454,8 @@ function ConfigPanel({
         <div className="flex gap-2 items-center">
           <input
             type="range"
-            min="40"
-            max="400"
+            min="20"
+            max="600"
             step="10"
             value={config.totalMin}
             onChange={e => onChange({ ...config, totalMin: parseInt(e.target.value) })}
@@ -403,8 +465,8 @@ function ConfigPanel({
           <span className="text-gray-500">to</span>
           <input
             type="range"
-            min="40"
-            max="400"
+            min="20"
+            max="600"
             step="10"
             value={config.totalMax}
             onChange={e => onChange({ ...config, totalMax: parseInt(e.target.value) })}
@@ -522,6 +584,75 @@ function ConfigPanel({
 
       <div>
         <label className="label">Color Palette</label>
+
+        {/* Preset Selector */}
+        <div className="flex gap-2 mb-3">
+          <select
+            onChange={e => {
+              const preset = COLOR_PRESETS[e.target.value];
+              if (preset) {
+                onChange({ ...config, allowedColors: [...preset.colors] });
+              }
+            }}
+            className="input flex-1 text-sm"
+            defaultValue=""
+          >
+            <option value="" disabled>Load Preset...</option>
+            {Object.entries(COLOR_PRESETS).map(([key, preset]) => (
+              <option key={key} value={key}>{preset.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              // Random palette: pick 5-8 random colors
+              const allColors = Object.keys(TARTAN_COLORS);
+              const count = 5 + Math.floor(Math.random() * 4);
+              const shuffled = [...allColors].sort(() => Math.random() - 0.5);
+              onChange({ ...config, allowedColors: shuffled.slice(0, count) });
+            }}
+            className="btn-secondary text-sm px-3"
+            title="Generate random palette"
+          >
+            🎲
+          </button>
+        </div>
+
+        {/* Save/Load Custom Palette */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => {
+              const name = prompt('Name your palette:');
+              if (name) {
+                const saved = JSON.parse(localStorage.getItem('tartanism-palettes') || '{}');
+                saved[name] = config.allowedColors;
+                localStorage.setItem('tartanism-palettes', JSON.stringify(saved));
+                alert(`Palette "${name}" saved!`);
+              }
+            }}
+            className="btn-secondary text-xs flex-1"
+          >
+            💾 Save Custom
+          </button>
+          <button
+            onClick={() => {
+              const saved = JSON.parse(localStorage.getItem('tartanism-palettes') || '{}');
+              const names = Object.keys(saved);
+              if (names.length === 0) {
+                alert('No saved palettes yet!');
+                return;
+              }
+              const choice = prompt(`Load palette:\n${names.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\nEnter name:`);
+              if (choice && saved[choice]) {
+                onChange({ ...config, allowedColors: saved[choice] });
+              }
+            }}
+            className="btn-secondary text-xs flex-1"
+          >
+            📂 Load Custom
+          </button>
+        </div>
+
+        {/* Color Selection */}
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
           {colorCategories.map(cat => (
             <div key={cat.name}>
@@ -552,6 +683,9 @@ function ConfigPanel({
               </div>
             </div>
           ))}
+        </div>
+        <div className="text-xs text-gray-500 mt-2">
+          {config.allowedColors.length} colors selected
         </div>
       </div>
 
