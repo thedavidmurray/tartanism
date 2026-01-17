@@ -41,6 +41,12 @@ type ViewMode = 'generator' | 'builder';
 
 type TileSize = 'swatch' | 'pocket' | 'tie' | 'scarf' | 'kilt' | 'blanket';
 
+interface CustomColor {
+  code: string;
+  name: string;
+  hex: string;
+}
+
 const TILE_SIZES: Record<TileSize, { repeats: number; name: string; inches: string }> = {
   swatch: { repeats: 1, name: 'Swatch', inches: '~6"' },
   pocket: { repeats: 2, name: 'Pocket Square', inches: '~10"' },
@@ -54,61 +60,225 @@ const TILE_SIZES: Record<TileSize, { repeats: number; name: string; inches: stri
 // COLOR PRESETS
 // ============================================================================
 
-const COLOR_PRESETS: Record<string, { name: string; colors: string[]; description: string }> = {
+const COLOR_PRESETS: Record<string, { name: string; colors: string[]; description: string; category?: string }> = {
+  // === FULL PALETTES ===
   all: {
     name: 'All Colors',
     colors: Object.keys(TARTAN_COLORS),
-    description: 'Full 48-color palette'
+    description: 'Full 48-color palette',
+    category: 'Full'
   },
-  traditional: {
-    name: 'Traditional Highland',
-    colors: ['B', 'DB', 'NB', 'R', 'DR', 'G', 'DG', 'HG', 'K', 'W', 'Y', 'GD'],
-    description: 'Classic Scottish tartan colors'
+
+  // === FAMOUS CLAN TARTANS ===
+  royalStewart: {
+    name: 'Royal Stewart',
+    colors: ['R', 'CR', 'B', 'Y', 'K', 'W', 'G'],
+    description: 'The official tartan of the Royal House of Stewart',
+    category: 'Clan'
   },
   blackWatch: {
     name: 'Black Watch',
     colors: ['DB', 'NB', 'DG', 'HG', 'K', 'B', 'G'],
-    description: 'Dark military style'
+    description: 'Military regiment tartan (42nd Highland)',
+    category: 'Clan'
   },
-  royalStewart: {
-    name: 'Royal Stewart',
-    colors: ['R', 'CR', 'B', 'Y', 'K', 'W', 'G'],
-    description: 'Iconic royal tartan colors'
+  campbell: {
+    name: 'Campbell',
+    colors: ['DG', 'B', 'K', 'Y', 'W', 'G', 'NB'],
+    description: 'Clan Campbell of Argyll',
+    category: 'Clan'
   },
+  macleod: {
+    name: 'MacLeod',
+    colors: ['Y', 'K', 'R', 'GD', 'DR'],
+    description: 'Clan MacLeod - distinctive yellow',
+    category: 'Clan'
+  },
+  macdonald: {
+    name: 'MacDonald',
+    colors: ['R', 'DG', 'B', 'K', 'G', 'NB'],
+    description: 'Clan Donald - Lords of the Isles',
+    category: 'Clan'
+  },
+  gordon: {
+    name: 'Gordon',
+    colors: ['DG', 'NB', 'Y', 'K', 'W', 'G', 'B'],
+    description: 'Clan Gordon of Aberdeenshire',
+    category: 'Clan'
+  },
+  fraser: {
+    name: 'Fraser',
+    colors: ['R', 'DG', 'W', 'NB', 'G', 'K'],
+    description: 'Clan Fraser of Lovat',
+    category: 'Clan'
+  },
+  buchanan: {
+    name: 'Buchanan',
+    colors: ['Y', 'R', 'DG', 'W', 'K', 'GD'],
+    description: 'Clan Buchanan - yellow and green',
+    category: 'Clan'
+  },
+  cameron: {
+    name: 'Cameron',
+    colors: ['R', 'DG', 'Y', 'K', 'G'],
+    description: 'Clan Cameron of Lochiel',
+    category: 'Clan'
+  },
+  douglas: {
+    name: 'Douglas',
+    colors: ['DG', 'B', 'GY', 'K', 'W'],
+    description: 'Clan Douglas - Grey Douglas',
+    category: 'Clan'
+  },
+
+  // === FASHION & DESIGNER INSPIRED ===
+  burberry: {
+    name: 'Burberry Style',
+    colors: ['TN', 'K', 'R', 'W', 'CB'],
+    description: 'Classic British check inspired',
+    category: 'Fashion'
+  },
+  gingham: {
+    name: 'Gingham',
+    colors: ['W', 'B', 'R', 'K'],
+    description: 'Simple two-tone checks',
+    category: 'Fashion'
+  },
+  madras: {
+    name: 'Madras',
+    colors: ['Y', 'O', 'PK', 'TL', 'LG', 'LB', 'LR'],
+    description: 'Bright Indian-style plaids',
+    category: 'Fashion'
+  },
+  preppy: {
+    name: 'Preppy',
+    colors: ['NB', 'R', 'GD', 'W', 'DG', 'K'],
+    description: 'Classic Ivy League style',
+    category: 'Fashion'
+  },
+  punk: {
+    name: 'Punk Tartan',
+    colors: ['R', 'K', 'W', 'Y', 'PK', 'P'],
+    description: 'Vivienne Westwood inspired',
+    category: 'Fashion'
+  },
+  nordic: {
+    name: 'Nordic',
+    colors: ['W', 'NB', 'R', 'GY', 'CW'],
+    description: 'Scandinavian minimalism',
+    category: 'Fashion'
+  },
+
+  // === REGIONAL & DISTRICT ===
+  edinburgh: {
+    name: 'Edinburgh',
+    colors: ['RB', 'GD', 'K', 'W', 'R'],
+    description: 'Scottish capital colors',
+    category: 'Regional'
+  },
+  highland: {
+    name: 'Highland',
+    colors: ['B', 'DB', 'NB', 'R', 'DR', 'G', 'DG', 'HG', 'K', 'W', 'Y', 'GD'],
+    description: 'Classic Scottish tartan colors',
+    category: 'Regional'
+  },
+  irish: {
+    name: 'Irish',
+    colors: ['G', 'DG', 'HG', 'W', 'GD', 'O'],
+    description: 'Irish green palettes',
+    category: 'Regional'
+  },
+  welsh: {
+    name: 'Welsh',
+    colors: ['R', 'DG', 'W', 'K', 'G'],
+    description: 'Welsh national colors',
+    category: 'Regional'
+  },
+
+  // === MOOD & THEME ===
   earthTones: {
     name: 'Earth Tones',
     colors: ['BR', 'LBR', 'DBR', 'TN', 'RU', 'CB', 'OG', 'HG', 'CW', 'ST', 'GD'],
-    description: 'Natural, warm colors'
+    description: 'Natural, warm colors',
+    category: 'Theme'
   },
   jewels: {
     name: 'Jewel Tones',
     colors: ['DP', 'VI', 'DB', 'RB', 'DR', 'DG', 'GD', 'AM'],
-    description: 'Rich, saturated colors'
+    description: 'Rich, saturated colors',
+    category: 'Theme'
   },
   muted: {
     name: 'Muted/Ancient',
     colors: ['LB', 'LG', 'LR', 'LY', 'GY', 'LGY', 'TN', 'CW', 'LV', 'LO'],
-    description: 'Soft, faded tones'
+    description: 'Soft, faded weathered tones',
+    category: 'Theme'
   },
   modern: {
     name: 'Modern Bright',
     colors: ['B', 'R', 'G', 'Y', 'O', 'P', 'PK', 'TL', 'W', 'K'],
-    description: 'Vivid contemporary colors'
+    description: 'Vivid contemporary colors',
+    category: 'Theme'
   },
   monochrome: {
     name: 'Monochrome',
     colors: ['K', 'DGY', 'GY', 'LGY', 'CH', 'W', 'CW'],
-    description: 'Black, white, and grays'
+    description: 'Black, white, and grays',
+    category: 'Theme'
   },
   warmth: {
     name: 'Warm Sunset',
     colors: ['R', 'LR', 'CR', 'O', 'LO', 'DO', 'Y', 'GD', 'AM', 'PK', 'RU'],
-    description: 'Reds, oranges, yellows'
+    description: 'Reds, oranges, yellows',
+    category: 'Theme'
   },
   cool: {
     name: 'Cool Ocean',
     colors: ['B', 'LB', 'DB', 'AB', 'RB', 'NB', 'TL', 'G', 'LG', 'P', 'LV'],
-    description: 'Blues, greens, purples'
+    description: 'Blues, greens, purples',
+    category: 'Theme'
+  },
+  forest: {
+    name: 'Forest',
+    colors: ['DG', 'HG', 'FG', 'OG', 'BR', 'DBR', 'K', 'TN'],
+    description: 'Deep woodland colors',
+    category: 'Theme'
+  },
+  autumn: {
+    name: 'Autumn',
+    colors: ['RU', 'O', 'GD', 'BR', 'DR', 'OG', 'AM', 'TN'],
+    description: 'Fall foliage colors',
+    category: 'Theme'
+  },
+  winter: {
+    name: 'Winter',
+    colors: ['W', 'LB', 'NB', 'GY', 'LGY', 'CW', 'DB'],
+    description: 'Cold, icy tones',
+    category: 'Theme'
+  },
+  spring: {
+    name: 'Spring',
+    colors: ['LG', 'PK', 'LY', 'LV', 'LB', 'W', 'LP'],
+    description: 'Fresh pastel colors',
+    category: 'Theme'
+  },
+  summer: {
+    name: 'Summer',
+    colors: ['Y', 'O', 'TL', 'LB', 'PK', 'G', 'W'],
+    description: 'Bright sunny colors',
+    category: 'Theme'
+  },
+  midnight: {
+    name: 'Midnight',
+    colors: ['NB', 'DP', 'K', 'DGY', 'DB', 'VI'],
+    description: 'Deep night colors',
+    category: 'Theme'
+  },
+  vintage: {
+    name: 'Vintage',
+    colors: ['TN', 'CW', 'RU', 'OG', 'GY', 'LBR', 'MR'],
+    description: 'Nostalgic faded colors',
+    category: 'Theme'
   },
 };
 
@@ -122,10 +292,33 @@ function renderTartan(
   weaveType: WeaveType,
   scale: number = 2,
   repeats: number = 1,
-  shapeMask?: ShapeMaskOptions
+  shapeMask?: ShapeMaskOptions,
+  customColors?: CustomColor[]
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+
+  // Helper to get color from standard or custom colors
+  const lookupColor = (code: string): { hex: string; rgb: { r: number; g: number; b: number } } | null => {
+    const standard = getColor(code);
+    if (standard) return { hex: standard.hex, rgb: standard.rgb };
+    const custom = customColors?.find(c => c.code.toUpperCase() === code.toUpperCase());
+    if (custom) {
+      // Parse hex to RGB
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(custom.hex);
+      if (result) {
+        return {
+          hex: custom.hex,
+          rgb: {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+          }
+        };
+      }
+    }
+    return null;
+  };
 
   const expanded = expandSett(sett);
   const weave = WEAVE_PATTERNS[weaveType];
@@ -141,7 +334,7 @@ function renderTartan(
       const weftIdx = Math.floor(y / scale) % settSize;
 
       const pixel = getIntersectionColor(expanded, expanded, weave, warpIdx, weftIdx);
-      const colorData = getColor(pixel.color);
+      const colorData = lookupColor(pixel.color);
 
       if (!colorData) continue;
 
@@ -169,6 +362,7 @@ function TartanCanvas({
   scale = 2,
   repeats = 1,
   shapeMask,
+  customColors,
   onClick,
   className = ''
 }: {
@@ -177,6 +371,7 @@ function TartanCanvas({
   scale?: number;
   repeats?: number;
   shapeMask?: ShapeMaskOptions;
+  customColors?: CustomColor[];
   onClick?: () => void;
   className?: string;
 }) {
@@ -184,9 +379,9 @@ function TartanCanvas({
 
   useEffect(() => {
     if (canvasRef.current) {
-      renderTartan(canvasRef.current, sett, weaveType, scale, repeats, shapeMask);
+      renderTartan(canvasRef.current, sett, weaveType, scale, repeats, shapeMask, customColors);
     }
-  }, [sett, weaveType, scale, repeats, shapeMask]);
+  }, [sett, weaveType, scale, repeats, shapeMask, customColors]);
 
   return (
     <canvas
@@ -213,6 +408,7 @@ function ColorChip({ code, small = false }: { code: string; small?: boolean }) {
 function TartanCard({
   data,
   config,
+  customColors,
   onMutate,
   onEdit,
   onTiledPreview,
@@ -223,6 +419,7 @@ function TartanCard({
 }: {
   data: TartanCardData;
   config: GeneratorConfig;
+  customColors?: CustomColor[];
   onMutate: (data: TartanCardData) => void;
   onEdit: (data: TartanCardData) => void;
   onTiledPreview: (data: TartanCardData) => void;
@@ -254,6 +451,7 @@ function TartanCard({
         scale={2}
         repeats={1}
         shapeMask={isOptical ? config.shapeMask : undefined}
+        customColors={customColors}
         onClick={() => onTiledPreview(data)}
         className="w-full aspect-square rounded-lg"
       />
@@ -307,11 +505,15 @@ function TartanCard({
 function ConfigPanel({
   config,
   onChange,
-  onGenerate
+  onGenerate,
+  onOpenColorBuilder,
+  customColors
 }: {
   config: GeneratorConfig;
   onChange: (config: GeneratorConfig) => void;
   onGenerate: () => void;
+  onOpenColorBuilder: () => void;
+  customColors: CustomColor[];
 }) {
   const colorCategories = [
     { name: 'Blues', codes: ['B', 'LB', 'DB', 'AB', 'RB', 'NB'] },
@@ -652,6 +854,18 @@ function ConfigPanel({
           </button>
         </div>
 
+        {/* Yarn Color Builder */}
+        <button
+          onClick={onOpenColorBuilder}
+          className="w-full btn-secondary text-sm mb-3 flex items-center justify-center gap-2"
+        >
+          <span>🎨</span>
+          <span>Yarn Color Builder</span>
+          {customColors.length > 0 && (
+            <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full">{customColors.length}</span>
+          )}
+        </button>
+
         {/* Color Selection */}
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
           {colorCategories.map(cat => (
@@ -683,6 +897,24 @@ function ConfigPanel({
               </div>
             </div>
           ))}
+
+          {/* Custom Colors */}
+          {customColors.length > 0 && (
+            <div>
+              <span className="text-xs text-indigo-400">Custom</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {customColors.map((cc) => (
+                  <div
+                    key={cc.code}
+                    className="w-6 h-6 rounded border-2 border-indigo-400 opacity-60 cursor-help"
+                    style={{ backgroundColor: cc.hex }}
+                    title={`${cc.name} (${cc.code}) - Use in Pattern Builder`}
+                  />
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">Use in Pattern Builder</p>
+            </div>
+          )}
         </div>
         <div className="text-xs text-gray-500 mt-2">
           {config.allowedColors.length} colors selected
@@ -699,11 +931,13 @@ function ConfigPanel({
 function PatternBuilder({
   initialSett,
   config,
+  customColors,
   onSave,
   onClose
 }: {
   initialSett?: Sett;
   config: GeneratorConfig;
+  customColors: CustomColor[];
   onSave: (sett: Sett) => void;
   onClose: () => void;
 }) {
@@ -753,6 +987,14 @@ function PatternBuilder({
     setStripes(newStripes);
   };
 
+  // Helper to get color hex from either standard or custom colors
+  const getColorHex = (code: string): string => {
+    const standardColor = getColor(code);
+    if (standardColor) return standardColor.hex;
+    const customColor = customColors.find(c => c.code.toUpperCase() === code.toUpperCase());
+    return customColor?.hex || '#808080';
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -791,7 +1033,7 @@ function PatternBuilder({
                   >
                     <div
                       className="w-8 h-8 rounded border border-gray-600 flex-shrink-0"
-                      style={{ backgroundColor: getColor(stripe.color)?.hex }}
+                      style={{ backgroundColor: getColorHex(stripe.color) }}
                     />
 
                     <select
@@ -800,9 +1042,18 @@ function PatternBuilder({
                       className="input flex-1 py-1 text-sm"
                       onClick={e => e.stopPropagation()}
                     >
-                      {Object.entries(TARTAN_COLORS).map(([code, color]) => (
-                        <option key={code} value={code}>{color.name} ({code})</option>
-                      ))}
+                      <optgroup label="Standard Colors">
+                        {Object.entries(TARTAN_COLORS).map(([code, color]) => (
+                          <option key={code} value={code}>{color.name} ({code})</option>
+                        ))}
+                      </optgroup>
+                      {customColors.length > 0 && (
+                        <optgroup label="Custom Colors">
+                          {customColors.map(cc => (
+                            <option key={cc.code} value={cc.code}>{cc.name} ({cc.code})</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
 
                     <input
@@ -866,6 +1117,7 @@ function PatternBuilder({
               weaveType={config.weaveType}
               scale={3}
               repeats={2}
+              customColors={customColors}
               className="w-full aspect-square rounded-lg"
             />
           </div>
@@ -891,10 +1143,12 @@ function PatternBuilder({
 function TiledPreviewModal({
   data,
   config,
+  customColors,
   onClose
 }: {
   data: TartanCardData;
   config: GeneratorConfig;
+  customColors?: CustomColor[];
   onClose: () => void;
 }) {
   const [tileSize, setTileSize] = useState<TileSize>('pocket');
@@ -940,6 +1194,7 @@ function TiledPreviewModal({
               scale={2}
               repeats={tileConfig.repeats}
               shapeMask={data.isOptical ? config.shapeMask : undefined}
+              customColors={customColors}
               className="mx-auto rounded-lg"
             />
           </div>
@@ -1127,6 +1382,288 @@ Generated by Tartanism - https://thedavidmurray.github.io/Tartanism
           </button>
           <button onClick={onClose} className="btn-primary">
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// YARN COLOR BUILDER
+// ============================================================================
+
+function YarnColorBuilder({
+  onClose,
+  onColorsChange
+}: {
+  onClose: () => void;
+  onColorsChange: (colors: CustomColor[]) => void;
+}) {
+  const [customColors, setCustomColors] = useState<CustomColor[]>(() => {
+    const saved = localStorage.getItem('tartanism-custom-colors');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [newColor, setNewColor] = useState<CustomColor>({
+    code: '',
+    name: '',
+    hex: '#808080'
+  });
+
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const saveColors = (colors: CustomColor[]) => {
+    setCustomColors(colors);
+    localStorage.setItem('tartanism-custom-colors', JSON.stringify(colors));
+    onColorsChange(colors);
+  };
+
+  const addColor = () => {
+    if (!newColor.code || !newColor.name) {
+      alert('Please enter both a code and name for the color.');
+      return;
+    }
+    if (newColor.code.length > 4) {
+      alert('Color code should be 1-4 characters.');
+      return;
+    }
+    if (customColors.some(c => c.code.toUpperCase() === newColor.code.toUpperCase())) {
+      alert('A color with this code already exists.');
+      return;
+    }
+    if (TARTAN_COLORS[newColor.code.toUpperCase()]) {
+      alert('This code conflicts with a built-in color. Choose a different code.');
+      return;
+    }
+
+    const updatedColors = [...customColors, { ...newColor, code: newColor.code.toUpperCase() }];
+    saveColors(updatedColors);
+    setNewColor({ code: '', name: '', hex: '#808080' });
+  };
+
+  const updateColor = (index: number) => {
+    const updated = [...customColors];
+    updated[index] = { ...newColor, code: newColor.code.toUpperCase() };
+    saveColors(updated);
+    setEditingIndex(null);
+    setNewColor({ code: '', name: '', hex: '#808080' });
+  };
+
+  const deleteColor = (index: number) => {
+    if (confirm('Delete this custom color?')) {
+      const updated = customColors.filter((_, i) => i !== index);
+      saveColors(updated);
+    }
+  };
+
+  const startEdit = (index: number) => {
+    setNewColor(customColors[index]);
+    setEditingIndex(index);
+  };
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setNewColor({ code: '', name: '', hex: '#808080' });
+  };
+
+  const exportColors = () => {
+    const data = JSON.stringify(customColors, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tartanism-custom-colors.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importColors = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const imported = JSON.parse(e.target?.result as string);
+            if (Array.isArray(imported) && imported.every(c => c.code && c.name && c.hex)) {
+              saveColors([...customColors, ...imported]);
+              alert(`Imported ${imported.length} colors!`);
+            } else {
+              alert('Invalid color file format.');
+            }
+          } catch {
+            alert('Error reading file.');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="card max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Yarn Color Builder</h2>
+            <p className="text-sm text-gray-400">Create custom colors for your tartans</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Add/Edit Color Form */}
+          <div className="bg-gray-800/50 p-4 rounded-lg space-y-4">
+            <h3 className="font-medium text-gray-200">
+              {editingIndex !== null ? 'Edit Color' : 'Add New Color'}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Color Code (1-4 chars)</label>
+                <input
+                  type="text"
+                  value={newColor.code}
+                  onChange={e => setNewColor({ ...newColor, code: e.target.value.slice(0, 4) })}
+                  placeholder="e.g. MY, CUS"
+                  className="input"
+                  maxLength={4}
+                />
+              </div>
+              <div>
+                <label className="label">Color Name</label>
+                <input
+                  type="text"
+                  value={newColor.name}
+                  onChange={e => setNewColor({ ...newColor, name: e.target.value })}
+                  placeholder="e.g. My Custom Blue"
+                  className="input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Color Value</label>
+              <div className="flex gap-3 items-center">
+                <input
+                  type="color"
+                  value={newColor.hex}
+                  onChange={e => setNewColor({ ...newColor, hex: e.target.value })}
+                  className="w-16 h-10 rounded cursor-pointer border-0"
+                />
+                <input
+                  type="text"
+                  value={newColor.hex}
+                  onChange={e => setNewColor({ ...newColor, hex: e.target.value })}
+                  placeholder="#RRGGBB"
+                  className="input flex-1 font-mono"
+                  pattern="^#[0-9A-Fa-f]{6}$"
+                />
+                <div
+                  className="w-20 h-10 rounded border border-gray-600"
+                  style={{ backgroundColor: newColor.hex }}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              {editingIndex !== null ? (
+                <>
+                  <button onClick={() => updateColor(editingIndex)} className="btn-primary flex-1">
+                    Update Color
+                  </button>
+                  <button onClick={cancelEdit} className="btn-secondary">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button onClick={addColor} className="btn-primary flex-1">
+                  + Add Color
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Custom Colors List */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-gray-200">Your Custom Colors ({customColors.length})</h3>
+              <div className="flex gap-2">
+                <button onClick={importColors} className="btn-secondary text-xs">
+                  📥 Import
+                </button>
+                {customColors.length > 0 && (
+                  <button onClick={exportColors} className="btn-secondary text-xs">
+                    📤 Export
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {customColors.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No custom colors yet.</p>
+                <p className="text-sm mt-1">Add colors above to build your yarn palette!</p>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {customColors.map((color, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-lg border border-gray-600 flex-shrink-0"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-200">{color.name}</div>
+                      <div className="text-sm text-gray-400 font-mono">
+                        {color.code} • {color.hex}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => startEdit(index)}
+                        className="p-2 text-gray-400 hover:text-white rounded transition-colors"
+                        title="Edit"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => deleteColor(index)}
+                        className="p-2 text-gray-400 hover:text-red-400 rounded transition-colors"
+                        title="Delete"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tips */}
+          <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-800/30">
+            <h4 className="font-medium text-indigo-300 mb-2">Tips</h4>
+            <ul className="text-sm text-gray-400 space-y-1">
+              <li>• Use short codes (1-4 chars) that don't conflict with existing colors</li>
+              <li>• Custom colors will appear in your color palette selection</li>
+              <li>• Export your colors to share them or back them up</li>
+              <li>• Match colors to real yarn you have for accurate production planning</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-gray-800 flex justify-end">
+          <button onClick={onClose} className="btn-primary">
+            Done
           </button>
         </div>
       </div>
@@ -1383,6 +1920,11 @@ export default function App() {
   const [tiledPreview, setTiledPreview] = useState<TartanCardData | null>(null);
   const [yarnCalcData, setYarnCalcData] = useState<TartanCardData | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showColorBuilder, setShowColorBuilder] = useState(false);
+  const [customColors, setCustomColors] = useState<CustomColor[]>(() => {
+    const saved = localStorage.getItem('tartanism-custom-colors');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const handleGenerate = useCallback(() => {
     const results = generateBatch(config.batchSize, {
@@ -1580,7 +2122,13 @@ export default function App() {
         <div className="grid lg:grid-cols-[320px_1fr] gap-8">
           {/* Config Panel */}
           <aside className="lg:sticky lg:top-24 lg:h-fit">
-            <ConfigPanel config={config} onChange={setConfig} onGenerate={handleGenerate} />
+            <ConfigPanel
+              config={config}
+              onChange={setConfig}
+              onGenerate={handleGenerate}
+              onOpenColorBuilder={() => setShowColorBuilder(true)}
+              customColors={customColors}
+            />
           </aside>
 
           {/* Results Grid */}
@@ -1601,6 +2149,7 @@ export default function App() {
                     key={data.id}
                     data={data}
                     config={config}
+                    customColors={customColors}
                     onMutate={handleMutate}
                     onEdit={handleEdit}
                     onTiledPreview={setTiledPreview}
@@ -1629,6 +2178,7 @@ export default function App() {
         <PatternBuilder
           initialSett={selectedForBuilder?.result.sett}
           config={config}
+          customColors={customColors}
           onSave={handleSavePattern}
           onClose={() => { setShowBuilder(false); setSelectedForBuilder(null); }}
         />
@@ -1638,6 +2188,7 @@ export default function App() {
         <TiledPreviewModal
           data={tiledPreview}
           config={config}
+          customColors={customColors}
           onClose={() => setTiledPreview(null)}
         />
       )}
@@ -1652,6 +2203,13 @@ export default function App() {
 
       {showHelp && (
         <HelpModal onClose={() => setShowHelp(false)} />
+      )}
+
+      {showColorBuilder && (
+        <YarnColorBuilder
+          onClose={() => setShowColorBuilder(false)}
+          onColorsChange={(colors) => setCustomColors(colors)}
+        />
       )}
     </div>
   );
