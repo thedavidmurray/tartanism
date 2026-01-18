@@ -504,6 +504,19 @@ function TartanCard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
         </button>
+        <button
+          onClick={() => {
+            const url = `https://thedavidmurray.github.io/tartanism/?seed=${seed}`;
+            const text = `Check out this tartan I made with Tartanism! ${sett.threadcount}`;
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+          }}
+          className="btn-secondary text-xs px-2"
+          title="Share on X/Twitter"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -1597,7 +1610,7 @@ function TiledPreviewModal({
   const [tileSize, setTileSize] = useState<TileSize>('scarf');
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(2);
-  const { sett } = data.result;
+  const { sett, seed } = data.result;
   const expanded = expandSett(sett);
   const settInches = expanded.length / config.threadGauge;
   const tileConfig = TILE_SIZES[tileSize];
@@ -1608,13 +1621,11 @@ function TiledPreviewModal({
     const calculateScale = () => {
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.clientWidth;
-      const containerHeight = containerRef.current.clientHeight - 80; // space for buttons/text
+      const containerHeight = containerRef.current.clientHeight - 80;
       const patternSize = expanded.length * tileConfig.repeats;
 
-      // Scale to fill the container (use the larger dimension to fill)
       const scaleX = containerWidth / patternSize;
       const scaleY = containerHeight / patternSize;
-      // Use the smaller of the two to fit, but ensure we fill as much as possible
       const newScale = Math.max(1, Math.min(scaleX, scaleY));
       setScale(newScale);
     };
@@ -1624,11 +1635,61 @@ function TiledPreviewModal({
     return () => window.removeEventListener('resize', calculateScale);
   }, [expanded.length, tileConfig.repeats]);
 
+  // Download tiled preview as high-res PNG
+  const handleDownload = () => {
+    const weave = WEAVE_PATTERNS[config.weaveType];
+    const downloadScale = 4; // High quality
+    const patternSize = expanded.length * tileConfig.repeats;
+    const canvas = document.createElement('canvas');
+    canvas.width = patternSize * downloadScale;
+    canvas.height = patternSize * downloadScale;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Custom color lookup
+    const lookupColor = (code: string) => {
+      const custom = customColors?.find(c => c.code === code);
+      if (custom) return { code: custom.code, name: custom.name, hex: custom.hex };
+      return getColor(code);
+    };
+
+    // Render tiled pattern
+    for (let ty = 0; ty < tileConfig.repeats; ty++) {
+      for (let tx = 0; tx < tileConfig.repeats; tx++) {
+        for (let y = 0; y < expanded.length; y++) {
+          for (let x = 0; x < expanded.length; x++) {
+            const pixel = getIntersectionColor(expanded, expanded, weave, x, y);
+            const color = lookupColor(pixel.color);
+            if (color) {
+              ctx.fillStyle = color.hex;
+              ctx.fillRect(
+                (tx * expanded.length + x) * downloadScale,
+                (ty * expanded.length + y) * downloadScale,
+                downloadScale,
+                downloadScale
+              );
+            }
+          }
+        }
+      }
+    }
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tartan-${seed}-${tileSize}-${tileConfig.repeats}x${tileConfig.repeats}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  };
+
   return (
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-2">
       <div className="card w-full h-full max-w-[98vw] max-h-[98vh] overflow-hidden flex flex-col">
         <div className="p-3 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <h2 className="text-lg font-semibold">Tiled Preview</h2>
             <div className="flex flex-wrap gap-1">
               {(Object.keys(TILE_SIZES) as TileSize[]).map(size => (
@@ -1649,7 +1710,19 @@ function TiledPreviewModal({
               {tileConfig.repeats}x{tileConfig.repeats} = ~{physicalSize}"
             </span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl px-2">&times;</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownload}
+              className="btn-primary text-sm px-4 py-1 flex items-center gap-2"
+              title="Save this preview as PNG"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Save Image
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl px-2">&times;</button>
+          </div>
         </div>
 
         <div ref={containerRef} className="flex-1 overflow-hidden flex items-center justify-center p-2">
