@@ -415,6 +415,7 @@ function TartanCard({
   onCopySeed,
   onDownloadSVG,
   onDownloadWIF,
+  onDownloadPNG,
   onShowYarnCalc
 }: {
   data: TartanCardData;
@@ -426,6 +427,7 @@ function TartanCard({
   onCopySeed: (seed: number) => void;
   onDownloadSVG: (data: TartanCardData) => void;
   onDownloadWIF: (data: TartanCardData) => void;
+  onDownloadPNG: (data: TartanCardData, dpi?: number) => void;
   onShowYarnCalc: (data: TartanCardData) => void;
 }) {
   const { result, isOptical, parentId } = data;
@@ -485,6 +487,11 @@ function TartanCard({
         <button onClick={() => onDownloadSVG(data)} className="btn-secondary text-xs px-2" title="Download SVG">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </button>
+        <button onClick={() => onDownloadPNG(data, 300)} className="btn-secondary text-xs px-2" title="Download PNG (300 DPI - Print Ready)">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </button>
         <button onClick={() => onDownloadWIF(data)} className="btn-secondary text-xs px-2" title="Download WIF (Loom Draft)">
@@ -2479,6 +2486,57 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [config.weaveType]);
 
+  // High-resolution PNG export for fabric production
+  const handleDownloadPNG = useCallback((data: TartanCardData, dpi: number = 300) => {
+    const { sett } = data.result;
+    const expanded = expandSett(sett);
+    const weave = WEAVE_PATTERNS[config.weaveType];
+
+    // Calculate scale for target DPI (base is 96 DPI for screen)
+    // For a 6" swatch at 300 DPI = 1800 pixels
+    const targetSizeInches = 6; // 6 inch swatch
+    const targetPixels = targetSizeInches * dpi;
+    const scale = Math.ceil(targetPixels / expanded.length);
+
+    const canvas = document.createElement('canvas');
+    const size = expanded.length * scale;
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Custom color lookup helper
+    const lookupColor = (code: string) => {
+      const custom = customColors.find(c => c.code === code);
+      if (custom) return { code: custom.code, name: custom.name, hex: custom.hex };
+      return getColor(code);
+    };
+
+    // Render at high resolution
+    for (let y = 0; y < expanded.length; y++) {
+      for (let x = 0; x < expanded.length; x++) {
+        const pixel = getIntersectionColor(expanded, expanded, weave, x, y);
+        const color = lookupColor(pixel.color);
+        if (color) {
+          ctx.fillStyle = color.hex;
+          ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+      }
+    }
+
+    // Convert to PNG and download
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tartan-${data.result.seed}-${dpi}dpi.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  }, [config.weaveType, customColors]);
+
   const handleCopySeed = useCallback((seed: number) => {
     navigator.clipboard.writeText(seed.toString());
   }, []);
@@ -2592,6 +2650,7 @@ export default function App() {
                     onCopySeed={handleCopySeed}
                     onDownloadSVG={handleDownloadSVG}
                     onDownloadWIF={handleDownloadWIF}
+                    onDownloadPNG={handleDownloadPNG}
                     onShowYarnCalc={setYarnCalcData}
                   />
                 ))}
