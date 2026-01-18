@@ -47,7 +47,23 @@ Apply 3D shape masks to create embedded geometry:
 ### Export
 - **SVG** - Vector files for each pattern
 - **CSV** - Full metadata for batch exports
+- **WIF** - Weaving Information File for loom software
 - **Copy Threadcount** - Click to copy notation
+
+### Yarn Calculator
+Production planning with detailed materials estimation:
+- **Product Templates** - Scarf, blanket, pillow, table runner, kilt yardage
+- **Yarn Profiles** - Lace through super-bulky weight classes
+- **Per-Color Requirements** - Warp yards, weft yards, total yards, weight in grams
+- **Cost Estimation** - Based on skein pricing
+- **Export** - CSV and JSON formats for supplier ordering
+
+### Warp/Weft Visualization
+See how your tartan will actually weave:
+- **6 Weave Patterns** - Plain, 2/2 twill, 3/1 twill, herringbone, houndstooth, basketweave
+- **True Intersection Rendering** - Shows which thread (warp or weft) is on top at each crossing
+- **Weave Analysis** - Warp dominance %, diagonal angle, float lengths, repeat size
+- **Threading/Treadling** - Complete loom draft with shaft assignments
 
 ## Technical Details
 
@@ -87,11 +103,13 @@ npm run preview
 
 ## Roadmap
 
-- [ ] WIF export for loom software
-- [ ] Yarn calculator for production
-- [ ] Scottish Register comparison
-- [ ] Parametric exploration
-- [ ] Production ordering system
+- [x] WIF export for loom software
+- [x] Yarn calculator for production
+- [x] Warp/weft intersection visualization
+- [ ] Scottish Register comparison/lookup
+- [ ] Parametric exploration mode
+- [ ] Print-on-demand integration (Printful API)
+- [ ] Traditional mill ordering workflow
 
 ## License
 

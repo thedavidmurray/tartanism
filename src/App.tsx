@@ -708,10 +708,12 @@ function TartanCard({
       <div className="flex items-start justify-between">
         <div className="flex flex-wrap gap-1">
           {!imagePattern && sett.colors.map(code => <ColorChip key={code} code={code} />)}
-          {imagePattern && <span className="text-xs text-gray-400">Image Pattern</span>}
+          {imagePattern && data.id.startsWith('motif-') && <span className="text-xs text-gray-400">{data.result.signature.signature}</span>}
+          {imagePattern && !data.id.startsWith('motif-') && <span className="text-xs text-gray-400">Image Pattern</span>}
         </div>
         <div className="flex gap-1">
-          {imagePattern && <span className="text-xs px-2 py-0.5 bg-cyan-900/50 text-cyan-300 rounded-full">Image</span>}
+          {imagePattern && data.id.startsWith('motif-') && <span className="text-xs px-2 py-0.5 bg-amber-900/50 text-amber-300 rounded-full">Motif</span>}
+          {imagePattern && !data.id.startsWith('motif-') && <span className="text-xs px-2 py-0.5 bg-cyan-900/50 text-cyan-300 rounded-full">Image</span>}
           {isBlanket && <span className="text-xs px-2 py-0.5 bg-orange-900/50 text-orange-300 rounded-full">Blanket</span>}
           {isOptical && <span className="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded-full">Optical</span>}
           {parentId && <span className="text-xs px-2 py-0.5 bg-green-900/50 text-green-300 rounded-full">Mutant</span>}
@@ -2987,6 +2989,369 @@ function ImagePatternBuilder({
             }`}
           >
             Add Pattern to Collection
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ILLUSTRATED ELEMENTS BUILDER - Pendleton-Style Motifs
+// ============================================================================
+
+type MotifCategory = 'animals' | 'nature' | 'geometric' | 'native';
+
+interface MotifDefinition {
+  id: string;
+  name: string;
+  category: MotifCategory;
+  // SVG path data for the motif (centered in 100x100 viewBox)
+  pathData: string;
+}
+
+// Curated collection of Pendleton-style motifs
+const ILLUSTRATED_MOTIFS: MotifDefinition[] = [
+  // Animals
+  { id: 'deer', name: 'Deer', category: 'animals',
+    pathData: 'M50 15 L45 25 L40 20 L42 30 L35 35 L40 40 L35 55 L38 70 L35 85 L40 85 L43 75 L47 85 L50 85 L50 55 L50 85 L53 85 L57 75 L60 85 L65 85 L62 70 L65 55 L60 40 L65 35 L58 30 L60 20 L55 25 Z M42 28 Q40 26 42 24 M58 28 Q60 26 58 24' },
+  { id: 'eagle', name: 'Eagle', category: 'animals',
+    pathData: 'M50 20 L45 25 L40 22 L48 30 L35 40 L15 45 L20 48 L10 55 L25 52 L35 50 L45 48 L50 50 L55 48 L65 50 L75 52 L90 55 L80 48 L85 45 L65 40 L52 30 L60 22 L55 25 Z M50 50 L45 65 L48 80 L50 75 L52 80 L55 65 Z' },
+  { id: 'wolf', name: 'Wolf', category: 'animals',
+    pathData: 'M30 35 L25 25 L30 30 L35 20 L40 30 L45 28 L50 25 L55 28 L60 30 L65 20 L70 30 L75 25 L70 35 L75 50 L70 65 L65 80 L50 85 L35 80 L30 65 L25 50 Z M38 40 Q36 38 38 36 M62 40 Q64 38 62 36 M45 55 L50 60 L55 55' },
+  { id: 'bear', name: 'Bear', category: 'animals',
+    pathData: 'M35 30 Q30 25 30 30 Q28 28 32 32 L30 40 L25 55 L30 70 L40 82 L50 85 L60 82 L70 70 L75 55 L70 40 L68 32 Q72 28 70 30 Q70 25 65 30 L60 28 L50 25 L40 28 Z M40 45 Q38 43 40 41 M60 45 Q62 43 60 41 M50 55 Q48 58 50 60 Q52 58 50 55' },
+  { id: 'buffalo', name: 'Buffalo', category: 'animals',
+    pathData: 'M25 35 Q20 30 22 35 L20 45 Q15 40 18 48 L25 50 L20 65 L25 80 L35 85 L50 87 L65 85 L75 80 L80 65 L75 50 L82 48 Q85 40 80 45 L78 35 Q80 30 75 35 L70 30 L50 25 L30 30 Z M35 45 Q33 43 35 41 M65 45 Q67 43 65 41' },
+
+  // Nature
+  { id: 'tree', name: 'Pine Tree', category: 'nature',
+    pathData: 'M50 10 L35 35 L42 35 L30 55 L40 55 L25 75 L45 75 L45 90 L55 90 L55 75 L75 75 L60 55 L70 55 L58 35 L65 35 Z' },
+  { id: 'mountain', name: 'Mountain', category: 'nature',
+    pathData: 'M10 80 L30 40 L40 55 L50 25 L60 55 L70 40 L90 80 Z M50 25 L55 35 L45 35 Z' },
+  { id: 'sun', name: 'Sun', category: 'nature',
+    pathData: 'M50 35 Q35 35 35 50 Q35 65 50 65 Q65 65 65 50 Q65 35 50 35 M50 15 L50 25 M50 75 L50 85 M15 50 L25 50 M75 50 L85 50 M25 25 L32 32 M68 68 L75 75 M75 25 L68 32 M32 68 L25 75' },
+  { id: 'moon', name: 'Moon', category: 'nature',
+    pathData: 'M55 20 Q35 25 35 50 Q35 75 55 80 Q40 70 40 50 Q40 30 55 20' },
+  { id: 'feather', name: 'Feather', category: 'nature',
+    pathData: 'M50 10 L48 90 M50 10 Q35 30 40 35 Q48 32 48 40 Q35 45 38 52 Q48 48 48 55 Q32 60 36 68 Q48 62 48 72 Q30 78 35 85 Q48 78 48 90 M50 10 Q65 30 60 35 Q52 32 52 40 Q65 45 62 52 Q52 48 52 55 Q68 60 64 68 Q52 62 52 72 Q70 78 65 85 Q52 78 52 90' },
+
+  // Geometric
+  { id: 'arrow-up', name: 'Arrow Up', category: 'geometric',
+    pathData: 'M50 15 L25 50 L40 50 L40 85 L60 85 L60 50 L75 50 Z' },
+  { id: 'arrow-right', name: 'Arrow Right', category: 'geometric',
+    pathData: 'M15 50 L50 25 L50 40 L85 40 L85 60 L50 60 L50 75 Z' },
+  { id: 'diamond', name: 'Diamond', category: 'geometric',
+    pathData: 'M50 10 L90 50 L50 90 L10 50 Z M50 25 L75 50 L50 75 L25 50 Z' },
+  { id: 'cross', name: 'Cross', category: 'geometric',
+    pathData: 'M40 10 L60 10 L60 40 L90 40 L90 60 L60 60 L60 90 L40 90 L40 60 L10 60 L10 40 L40 40 Z' },
+  { id: 'star', name: 'Star', category: 'geometric',
+    pathData: 'M50 10 L58 38 L90 38 L64 56 L74 85 L50 68 L26 85 L36 56 L10 38 L42 38 Z' },
+  { id: 'hexagon', name: 'Hexagon', category: 'geometric',
+    pathData: 'M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z' },
+
+  // Native American inspired
+  { id: 'thunderbird', name: 'Thunderbird', category: 'native',
+    pathData: 'M50 15 L40 25 L30 22 L35 30 L20 35 L10 40 L20 45 L10 55 L25 50 L35 55 L40 50 L50 52 L60 50 L65 55 L75 50 L90 55 L80 45 L90 40 L80 35 L65 30 L70 22 L60 25 Z M50 52 L45 70 L48 80 L50 75 L52 80 L55 70 Z M40 65 L35 75 L40 70 M60 65 L65 75 L60 70' },
+  { id: 'step-pattern', name: 'Steps', category: 'native',
+    pathData: 'M10 90 L10 70 L25 70 L25 55 L40 55 L40 40 L60 40 L60 55 L75 55 L75 70 L90 70 L90 90 Z' },
+  { id: 'wave', name: 'Wave', category: 'native',
+    pathData: 'M5 50 Q20 30 35 50 Q50 70 65 50 Q80 30 95 50 Q80 30 65 50 Q50 70 35 50 Q20 30 5 50 M5 65 Q20 45 35 65 Q50 85 65 65 Q80 45 95 65' },
+  { id: 'zigzag', name: 'Zigzag', category: 'native',
+    pathData: 'M5 70 L20 30 L35 70 L50 30 L65 70 L80 30 L95 70 M5 85 L20 45 L35 85 L50 45 L65 85 L80 45 L95 85' },
+];
+
+interface IllustratedPatternData {
+  motifId: string;
+  motifColor: string;
+  backgroundColor: string;
+  motifScale: number;
+  motifX: number;
+  motifY: number;
+  repeatPattern: boolean;
+}
+
+function IllustratedElementsBuilder({
+  onClose,
+  onCreatePattern,
+}: {
+  onClose: () => void;
+  onCreatePattern: (imageData: string, name: string) => void;
+}) {
+  const [selectedMotif, setSelectedMotif] = useState<MotifDefinition>(ILLUSTRATED_MOTIFS[0]);
+  const [motifColor, setMotifColor] = useState('#FFFFFF');
+  const [backgroundColor, setBackgroundColor] = useState('#1a1a2e');
+  const [secondaryColor, setSecondaryColor] = useState('#4a4a6e');
+  const [motifScale, setMotifScale] = useState(0.6);
+  const [activeCategory, setActiveCategory] = useState<MotifCategory>('animals');
+  const [repeatPattern, setRepeatPattern] = useState(false);
+  const [showStripes, setShowStripes] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const categories: { id: MotifCategory; name: string; icon: string }[] = [
+    { id: 'animals', name: 'Animals', icon: '🦌' },
+    { id: 'nature', name: 'Nature', icon: '🌲' },
+    { id: 'geometric', name: 'Geometric', icon: '◇' },
+    { id: 'native', name: 'Native', icon: '🪶' },
+  ];
+
+  // Color presets for quick selection
+  const colorPresets = [
+    { name: 'Classic Red', bg: '#8B0000', secondary: '#D2691E', motif: '#FFFAF0' },
+    { name: 'Forest', bg: '#1B4332', secondary: '#2D6A4F', motif: '#D8F3DC' },
+    { name: 'Desert', bg: '#BC6C25', secondary: '#DDA15E', motif: '#FEFAE0' },
+    { name: 'Ocean', bg: '#023E8A', secondary: '#0077B6', motif: '#CAF0F8' },
+    { name: 'Night', bg: '#1a1a2e', secondary: '#4a4a6e', motif: '#FFFFFF' },
+    { name: 'Earth', bg: '#5C4033', secondary: '#8B4513', motif: '#F5DEB3' },
+  ];
+
+  // Render the pattern preview
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const size = 300;
+    canvas.width = size;
+    canvas.height = size;
+
+    // Draw background with optional stripes
+    if (showStripes) {
+      const stripeHeight = size / 10;
+      for (let i = 0; i < 10; i++) {
+        ctx.fillStyle = i % 2 === 0 ? backgroundColor : secondaryColor;
+        ctx.fillRect(0, i * stripeHeight, size, stripeHeight);
+      }
+      // Add accent stripes
+      ctx.fillStyle = motifColor + '40'; // Semi-transparent motif color
+      ctx.fillRect(0, stripeHeight * 2, size, stripeHeight / 2);
+      ctx.fillRect(0, stripeHeight * 7, size, stripeHeight / 2);
+    } else {
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, size, size);
+    }
+
+    // Draw the SVG motif
+    const drawMotif = (x: number, y: number, scale: number, flip = false) => {
+      ctx.save();
+      ctx.translate(x, y);
+      if (flip) ctx.scale(-1, 1);
+      ctx.scale(scale, scale);
+      ctx.translate(-50, -50); // Center the 100x100 viewBox
+
+      const path = new Path2D(selectedMotif.pathData);
+      ctx.fillStyle = motifColor;
+      ctx.fill(path);
+
+      // Add a subtle outline
+      ctx.strokeStyle = motifColor;
+      ctx.lineWidth = 1 / scale;
+      ctx.stroke(path);
+
+      ctx.restore();
+    };
+
+    const motifSize = size * motifScale;
+
+    if (repeatPattern) {
+      // Tiled pattern
+      const tileSize = motifSize * 1.2;
+      const cols = Math.ceil(size / tileSize) + 1;
+      const rows = Math.ceil(size / tileSize) + 1;
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = col * tileSize + (row % 2 ? tileSize / 2 : 0);
+          const y = row * tileSize;
+          drawMotif(x, y, motifScale * 0.5, col % 2 === 1);
+        }
+      }
+    } else {
+      // Single centered motif
+      drawMotif(size / 2, size / 2, motifScale);
+    }
+  }, [selectedMotif, motifColor, backgroundColor, secondaryColor, motifScale, repeatPattern, showStripes]);
+
+  const handleCreate = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    onCreatePattern(canvas.toDataURL(), `${selectedMotif.name} Pattern`);
+  };
+
+  const applyPreset = (preset: typeof colorPresets[0]) => {
+    setBackgroundColor(preset.bg);
+    setSecondaryColor(preset.secondary);
+    setMotifColor(preset.motif);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-800">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">🦌 Illustrated Motifs</h2>
+            <p className="text-sm text-gray-400 mt-1">Add Pendleton-style illustrations to your patterns</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Left: Controls */}
+            <div className="space-y-5">
+              {/* Category Tabs */}
+              <div className="flex gap-2">
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`px-3 py-2 rounded-lg transition-colors ${
+                      activeCategory === cat.id
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {cat.icon} {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Motif Grid */}
+              <div className="grid grid-cols-4 gap-2">
+                {ILLUSTRATED_MOTIFS.filter(m => m.category === activeCategory).map(motif => (
+                  <button
+                    key={motif.id}
+                    onClick={() => setSelectedMotif(motif)}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      selectedMotif.id === motif.id
+                        ? 'border-indigo-500 bg-indigo-950'
+                        : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                    }`}
+                  >
+                    <svg viewBox="0 0 100 100" className="w-full h-12">
+                      <path d={motif.pathData} fill="currentColor" className="text-gray-300" />
+                    </svg>
+                    <span className="text-xs text-gray-400 block mt-1">{motif.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Color Presets */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Color Presets</label>
+                <div className="flex gap-2 flex-wrap">
+                  {colorPresets.map(preset => (
+                    <button
+                      key={preset.name}
+                      onClick={() => applyPreset(preset)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex">
+                        <div className="w-4 h-4 rounded-l" style={{ backgroundColor: preset.bg }} />
+                        <div className="w-4 h-4" style={{ backgroundColor: preset.secondary }} />
+                        <div className="w-4 h-4 rounded-r" style={{ backgroundColor: preset.motif }} />
+                      </div>
+                      <span className="text-xs text-gray-400">{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Colors */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">Background</label>
+                  <input
+                    type="color"
+                    value={backgroundColor}
+                    onChange={(e) => setBackgroundColor(e.target.value)}
+                    className="w-full h-10 rounded cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">Stripe</label>
+                  <input
+                    type="color"
+                    value={secondaryColor}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    className="w-full h-10 rounded cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400 mb-1 block">Motif</label>
+                  <input
+                    type="color"
+                    value={motifColor}
+                    onChange={(e) => setMotifColor(e.target.value)}
+                    className="w-full h-10 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Scale Slider */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">
+                  Motif Scale: {Math.round(motifScale * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="1"
+                  step="0.05"
+                  value={motifScale}
+                  onChange={(e) => setMotifScale(parseFloat(e.target.value))}
+                  className="slider w-full"
+                />
+              </div>
+
+              {/* Options */}
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showStripes}
+                    onChange={(e) => setShowStripes(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm text-gray-300">Striped Background</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={repeatPattern}
+                    onChange={(e) => setRepeatPattern(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm text-gray-300">Repeat Pattern</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Right: Preview */}
+            <div className="flex flex-col items-center">
+              <canvas
+                ref={canvasRef}
+                className="rounded-xl border border-gray-700 shadow-lg"
+                style={{ width: 300, height: 300 }}
+              />
+              <p className="text-sm text-gray-500 mt-3 text-center">
+                {selectedMotif.name} on {showStripes ? 'striped' : 'solid'} background
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-800">
+          <button
+            onClick={handleCreate}
+            className="w-full btn-primary"
+          >
+            Add to Collection
           </button>
         </div>
       </div>
@@ -5555,6 +5920,7 @@ export default function App() {
   const [showColorExtractor, setShowColorExtractor] = useState(false);
   const [showGeometricBuilder, setShowGeometricBuilder] = useState(false);
   const [showImagePatternBuilder, setShowImagePatternBuilder] = useState(false);
+  const [showIllustratedBuilder, setShowIllustratedBuilder] = useState(false);
   const [showKnittingChart, setShowKnittingChart] = useState(false);
   const [customColors, setCustomColors] = useState<CustomColor[]>(() => {
     const saved = localStorage.getItem('tartanism-custom-colors');
@@ -5779,6 +6145,30 @@ export default function App() {
 
     setTartans(prev => [newPattern, ...prev]);
     setShowImagePatternBuilder(false);
+  }, []);
+
+  const handleCreateIllustratedPattern = useCallback((imageData: string, name: string) => {
+    // Create a placeholder sett (illustrated patterns don't use threadcount)
+    const placeholderSett = parseThreadcount('K/8 W8');
+    if (!placeholderSett) return;
+
+    const newPattern: TartanCardData = {
+      id: `motif-${Date.now()}`,
+      result: {
+        sett: placeholderSett,
+        seed: Date.now(),
+        constraints: DEFAULT_CONSTRAINTS,
+        signature: { signature: name, structureSignature: '', proportionSignature: '' }
+      },
+      imagePattern: {
+        imageData,
+        repeatMode: 'normal',
+        pixelSize: 1,
+      },
+    };
+
+    setTartans(prev => [newPattern, ...prev]);
+    setShowIllustratedBuilder(false);
   }, []);
 
   const handleMutate = useCallback((data: TartanCardData) => {
@@ -6015,6 +6405,12 @@ export default function App() {
               className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
             >
               🖼️ Image
+            </button>
+            <button
+              onClick={() => setShowIllustratedBuilder(true)}
+              className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+            >
+              🦌 Motifs
             </button>
             <button
               onClick={() => setShowKnittingChart(true)}
@@ -6295,6 +6691,13 @@ export default function App() {
         <ImagePatternBuilder
           onClose={() => setShowImagePatternBuilder(false)}
           onCreatePattern={handleCreateImagePattern}
+        />
+      )}
+
+      {showIllustratedBuilder && (
+        <IllustratedElementsBuilder
+          onClose={() => setShowIllustratedBuilder(false)}
+          onCreatePattern={handleCreateIllustratedPattern}
         />
       )}
 
