@@ -17,6 +17,7 @@ interface TartanCardData {
   result: GeneratorResult;
   parentId?: string;
   isOptical?: boolean;
+  isBlanket?: boolean; // Renders as solid stripes (Pendleton-style) instead of tartan weave
 }
 
 interface GeneratorConfig {
@@ -411,7 +412,8 @@ function renderTartan(
   scale: number = 2,
   repeats: number = 1,
   shapeMask?: ShapeMaskOptions,
-  customColors?: CustomColor[]
+  customColors?: CustomColor[],
+  isBlanket?: boolean  // Render as solid horizontal stripes (Pendleton-style)
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -446,6 +448,35 @@ function renderTartan(
   canvas.width = size;
   canvas.height = size;
 
+  // Blanket mode: solid horizontal stripes (no warp/weft interlacing)
+  if (isBlanket) {
+    for (let y = 0; y < size; y++) {
+      const stripeIdx = Math.floor(y / scale) % settSize;
+      const colorCode = expanded.threads[stripeIdx];
+      const colorData = lookupColor(colorCode);
+
+      if (!colorData) continue;
+
+      let rgb = { ...colorData.rgb };
+
+      // Apply shape mask if enabled
+      if (shapeMask && shapeMask.type !== 'none') {
+        for (let x = 0; x < size; x++) {
+          const maskPixel = applyMask(x, y, size, size, shapeMask);
+          const adjustedRgb = adjustBrightness(rgb, maskPixel.brightness);
+          ctx.fillStyle = rgbToHex(adjustedRgb);
+          ctx.fillRect(x, y, 1, 1);
+        }
+      } else {
+        // Fast path: draw entire horizontal stripe at once
+        ctx.fillStyle = colorData.hex;
+        ctx.fillRect(0, y, size, 1);
+      }
+    }
+    return;
+  }
+
+  // Normal tartan weave rendering
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const warpIdx = Math.floor(x / scale) % settSize;
@@ -481,6 +512,7 @@ function TartanCanvas({
   repeats = 1,
   shapeMask,
   customColors,
+  isBlanket,
   onClick,
   className = ''
 }: {
@@ -490,6 +522,7 @@ function TartanCanvas({
   repeats?: number;
   shapeMask?: ShapeMaskOptions;
   customColors?: CustomColor[];
+  isBlanket?: boolean;
   onClick?: () => void;
   className?: string;
 }) {
@@ -497,9 +530,9 @@ function TartanCanvas({
 
   useEffect(() => {
     if (canvasRef.current) {
-      renderTartan(canvasRef.current, sett, weaveType, scale, repeats, shapeMask, customColors);
+      renderTartan(canvasRef.current, sett, weaveType, scale, repeats, shapeMask, customColors, isBlanket);
     }
-  }, [sett, weaveType, scale, repeats, shapeMask, customColors]);
+  }, [sett, weaveType, scale, repeats, shapeMask, customColors, isBlanket]);
 
   return (
     <canvas
@@ -608,7 +641,7 @@ function TartanCard({
   onShowYarnCalc: (data: TartanCardData) => void;
   onShowMockups: (data: TartanCardData) => void;
 }) {
-  const { result, isOptical, parentId } = data;
+  const { result, isOptical, isBlanket, parentId } = data;
   const { sett, seed } = result;
   const expanded = expandSett(sett);
   const settInches = (expanded.length / config.threadGauge).toFixed(2);
@@ -632,6 +665,7 @@ function TartanCard({
           {sett.colors.map(code => <ColorChip key={code} code={code} />)}
         </div>
         <div className="flex gap-1">
+          {isBlanket && <span className="text-xs px-2 py-0.5 bg-orange-900/50 text-orange-300 rounded-full">Blanket</span>}
           {isOptical && <span className="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded-full">Optical</span>}
           {parentId && <span className="text-xs px-2 py-0.5 bg-green-900/50 text-green-300 rounded-full">Mutant</span>}
         </div>
@@ -644,6 +678,7 @@ function TartanCard({
         repeats={1}
         shapeMask={isOptical ? config.shapeMask : undefined}
         customColors={customColors}
+        isBlanket={isBlanket}
         onClick={() => onTiledPreview(data)}
         className="w-full aspect-square rounded-lg"
       />
@@ -1917,17 +1952,33 @@ function TiledPreviewModal({
     for (let ty = 0; ty < tileConfig.repeats; ty++) {
       for (let tx = 0; tx < tileConfig.repeats; tx++) {
         for (let y = 0; y < expanded.length; y++) {
-          for (let x = 0; x < expanded.length; x++) {
-            const pixel = getIntersectionColor(expanded, expanded, weave, x, y);
-            const color = lookupColor(pixel.color);
+          // Blanket mode: solid horizontal stripes
+          if (data.isBlanket) {
+            const colorCode = expanded.threads[y];
+            const color = lookupColor(colorCode);
             if (color) {
               ctx.fillStyle = color.hex;
               ctx.fillRect(
-                (tx * expanded.length + x) * downloadScale,
+                tx * expanded.length * downloadScale,
                 (ty * expanded.length + y) * downloadScale,
-                downloadScale,
+                expanded.length * downloadScale,
                 downloadScale
               );
+            }
+          } else {
+            // Normal tartan weave
+            for (let x = 0; x < expanded.length; x++) {
+              const pixel = getIntersectionColor(expanded, expanded, weave, x, y);
+              const color = lookupColor(pixel.color);
+              if (color) {
+                ctx.fillStyle = color.hex;
+                ctx.fillRect(
+                  (tx * expanded.length + x) * downloadScale,
+                  (ty * expanded.length + y) * downloadScale,
+                  downloadScale,
+                  downloadScale
+                );
+              }
             }
           }
         }
@@ -1993,6 +2044,7 @@ function TiledPreviewModal({
             repeats={tileConfig.repeats}
             shapeMask={data.isOptical ? config.shapeMask : undefined}
             customColors={customColors}
+            isBlanket={data.isBlanket}
             className="rounded-lg"
           />
         </div>
@@ -2067,19 +2119,31 @@ function ProductMockups({ data, config, customColors, onClose }: ProductMockupPr
     for (let ty = 0; ty < tiledHeight + 1; ty++) {
       for (let tx = 0; tx < tiledWidth + 1; tx++) {
         for (let y = 0; y < expanded.length; y++) {
-          for (let x = 0; x < expanded.length; x++) {
-            const warpColor = expanded.threads[x % expanded.length];
-            const weftColor = expanded.threads[y % expanded.length];
-            const warpOnTop = weave.tieUp[y % weave.treadling.length][x % weave.threading.length];
-
-            const colorCode = warpOnTop ? warpColor : weftColor;
+          // Blanket mode: solid horizontal stripes
+          if (data.isBlanket) {
+            const colorCode = expanded.threads[y % expanded.length];
             ctx.fillStyle = lookupColor(colorCode);
-
-            const px = (tx * expanded.length + x) * scale;
+            const px = tx * expanded.length * scale;
             const py = (ty * expanded.length + y) * scale;
+            if (py < height) {
+              ctx.fillRect(px, py, expanded.length * scale + 0.5, scale + 0.5);
+            }
+          } else {
+            // Normal tartan weave
+            for (let x = 0; x < expanded.length; x++) {
+              const warpColor = expanded.threads[x % expanded.length];
+              const weftColor = expanded.threads[y % expanded.length];
+              const warpOnTop = weave.tieUp[y % weave.treadling.length][x % weave.threading.length];
 
-            if (px < width && py < height) {
-              ctx.fillRect(px, py, scale + 0.5, scale + 0.5);
+              const colorCode = warpOnTop ? warpColor : weftColor;
+              ctx.fillStyle = lookupColor(colorCode);
+
+              const px = (tx * expanded.length + x) * scale;
+              const py = (ty * expanded.length + y) * scale;
+
+              if (px < width && py < height) {
+                ctx.fillRect(px, py, scale + 0.5, scale + 0.5);
+              }
             }
           }
         }
@@ -2141,7 +2205,7 @@ function ProductMockups({ data, config, customColors, onClose }: ProductMockupPr
     ctx.shadowBlur = 10;
     ctx.shadowOffsetX = 5;
     ctx.shadowOffsetY = 5;
-  }, [sett, config.weaveType, selectedProduct, currentProduct, customColors]);
+  }, [sett, config.weaveType, selectedProduct, currentProduct, customColors, data.isBlanket]);
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -5291,6 +5355,7 @@ export default function App() {
         signature: { signature: '', structureSignature: '', proportionSignature: '' }
       },
       isOptical: config.opticalMode,
+      isBlanket: true,  // Geometric patterns render as solid stripes (Pendleton-style)
     };
 
     setTartans(prev => [newTartan, ...prev]);
