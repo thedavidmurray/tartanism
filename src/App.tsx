@@ -979,6 +979,8 @@ function PatternBuilder({
   const [syncWarpWeft, setSyncWarpWeft] = useState(true); // Traditional tartan = same warp/weft
   const [gridScale, setGridScale] = useState(4); // Pixels per thread in grid view
   const [selectedAxis, setSelectedAxis] = useState<'warp' | 'weft'>('warp');
+  const [showProductPreview, setShowProductPreview] = useState(false);
+  const [productSize, setProductSize] = useState<TileSize>('scarf');
 
   const currentSett = parseThreadcount(stripes.map(s => `${s.color}${s.isPivot ? '/' : ''}${s.count}`).join(' '));
 
@@ -1248,6 +1250,52 @@ function PatternBuilder({
                   customColors={customColors}
                   className="w-full aspect-square rounded-lg"
                 />
+
+                {/* Product Scale Preview */}
+                <div className="border-t border-gray-800 pt-4">
+                  <button
+                    onClick={() => setShowProductPreview(!showProductPreview)}
+                    className="flex items-center justify-between w-full text-left"
+                  >
+                    <label className="label mb-0 cursor-pointer">Product Previews</label>
+                    <span className="text-gray-400">{showProductPreview ? '−' : '+'}</span>
+                  </button>
+
+                  {showProductPreview && (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(Object.keys(TILE_SIZES) as TileSize[]).map(size => (
+                          <button
+                            key={size}
+                            onClick={() => setProductSize(size)}
+                            className={`px-2 py-1 rounded text-xs transition-colors ${
+                              productSize === size
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                            }`}
+                          >
+                            {TILE_SIZES[size].name}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="text-xs text-gray-500">
+                        {TILE_SIZES[productSize].repeats}x repeats = {TILE_SIZES[productSize].inches}
+                      </div>
+
+                      <div className="bg-gray-900 p-2 rounded-lg overflow-auto max-h-64">
+                        <TartanCanvas
+                          sett={currentSett}
+                          weaveType={config.weaveType}
+                          scale={2}
+                          repeats={TILE_SIZES[productSize].repeats}
+                          customColors={customColors}
+                          className="mx-auto rounded"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
@@ -1458,6 +1506,52 @@ function PatternBuilder({
                     className="w-full aspect-square rounded-lg max-w-[200px]"
                   />
                 </div>
+              </div>
+
+              {/* Product Scale Preview for Grid Mode */}
+              <div className="border-t border-gray-800 pt-4 mt-4">
+                <button
+                  onClick={() => setShowProductPreview(!showProductPreview)}
+                  className="flex items-center justify-between w-full text-left"
+                >
+                  <label className="label mb-0 cursor-pointer">Product Previews</label>
+                  <span className="text-gray-400">{showProductPreview ? '−' : '+'}</span>
+                </button>
+
+                {showProductPreview && (
+                  <div className="mt-3 space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {(Object.keys(TILE_SIZES) as TileSize[]).map(size => (
+                        <button
+                          key={size}
+                          onClick={() => setProductSize(size)}
+                          className={`px-2 py-1 rounded text-xs transition-colors ${
+                            productSize === size
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                          }`}
+                        >
+                          {TILE_SIZES[size].name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                      {TILE_SIZES[productSize].repeats}x repeats = {TILE_SIZES[productSize].inches}
+                    </div>
+
+                    <div className="bg-gray-900 p-2 rounded-lg overflow-auto max-h-80">
+                      <TartanCanvas
+                        sett={gridSett}
+                        weaveType={config.weaveType}
+                        scale={2}
+                        repeats={TILE_SIZES[productSize].repeats}
+                        customColors={customColors}
+                        className="mx-auto rounded"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
