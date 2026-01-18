@@ -12,12 +12,21 @@ import { calculateForProduct, PRODUCT_TEMPLATES, YARN_PROFILES, formatMaterialsS
 // TYPES
 // ============================================================================
 
+type TileRepeatMode = 'normal' | 'brick' | 'half-drop' | 'mirror' | 'random';
+
+interface ImagePatternData {
+  imageData: string;           // Base64 data URL of the processed tile
+  repeatMode: TileRepeatMode;
+  pixelSize: number;
+}
+
 interface TartanCardData {
   id: string;
   result: GeneratorResult;
   parentId?: string;
   isOptical?: boolean;
-  isBlanket?: boolean; // Renders as solid stripes (Pendleton-style) instead of tartan weave
+  isBlanket?: boolean;        // Renders as solid stripes (Pendleton-style) instead of tartan weave
+  imagePattern?: ImagePatternData;  // For image-based patterns (not tartan)
 }
 
 interface GeneratorConfig {
@@ -641,7 +650,7 @@ function TartanCard({
   onShowYarnCalc: (data: TartanCardData) => void;
   onShowMockups: (data: TartanCardData) => void;
 }) {
-  const { result, isOptical, isBlanket, parentId } = data;
+  const { result, isOptical, isBlanket, parentId, imagePattern } = data;
   const { sett, seed } = result;
   const expanded = expandSett(sett);
   const settInches = (expanded.length / config.threadGauge).toFixed(2);
@@ -653,6 +662,42 @@ function TartanCard({
     }
   };
 
+  // For image patterns, render a tiled canvas preview
+  const imagePatternCanvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (!imagePattern) return;
+    const canvas = imagePatternCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const size = 200;
+      canvas.width = size;
+      canvas.height = size;
+      ctx.imageSmoothingEnabled = false;
+
+      const tileW = img.width * imagePattern.pixelSize;
+      const tileH = img.height * imagePattern.pixelSize;
+      const tilesX = Math.ceil(size / tileW) + 1;
+      const tilesY = Math.ceil(size / tileH) + 1;
+
+      for (let ty = 0; ty < tilesY; ty++) {
+        for (let tx = 0; tx < tilesX; tx++) {
+          let x = tx * tileW;
+          let y = ty * tileH;
+
+          if (imagePattern.repeatMode === 'brick' && ty % 2 === 1) x += tileW / 2;
+          if (imagePattern.repeatMode === 'half-drop' && tx % 2 === 1) y += tileH / 2;
+
+          ctx.drawImage(img, x, y, tileW, tileH);
+        }
+      }
+    };
+    img.src = imagePattern.imageData;
+  }, [imagePattern]);
+
   return (
     <div
       className={`card p-4 space-y-3 animate-fadeIn ${
@@ -662,40 +707,64 @@ function TartanCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex flex-wrap gap-1">
-          {sett.colors.map(code => <ColorChip key={code} code={code} />)}
+          {!imagePattern && sett.colors.map(code => <ColorChip key={code} code={code} />)}
+          {imagePattern && <span className="text-xs text-gray-400">Image Pattern</span>}
         </div>
         <div className="flex gap-1">
+          {imagePattern && <span className="text-xs px-2 py-0.5 bg-cyan-900/50 text-cyan-300 rounded-full">Image</span>}
           {isBlanket && <span className="text-xs px-2 py-0.5 bg-orange-900/50 text-orange-300 rounded-full">Blanket</span>}
           {isOptical && <span className="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded-full">Optical</span>}
           {parentId && <span className="text-xs px-2 py-0.5 bg-green-900/50 text-green-300 rounded-full">Mutant</span>}
         </div>
       </div>
 
-      <TartanCanvas
-        sett={sett}
-        weaveType={config.weaveType}
-        scale={2}
-        repeats={1}
-        shapeMask={isOptical ? config.shapeMask : undefined}
-        customColors={customColors}
-        isBlanket={isBlanket}
-        onClick={breedingMode ? undefined : () => onTiledPreview(data)}
-        className="w-full aspect-square rounded-lg"
-      />
+      {imagePattern ? (
+        <canvas
+          ref={imagePatternCanvasRef}
+          className="w-full aspect-square rounded-lg cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all"
+          style={{ imageRendering: 'pixelated' }}
+          onClick={breedingMode ? undefined : () => onTiledPreview(data)}
+        />
+      ) : (
+        <TartanCanvas
+          sett={sett}
+          weaveType={config.weaveType}
+          scale={2}
+          repeats={1}
+          shapeMask={isOptical ? config.shapeMask : undefined}
+          customColors={customColors}
+          isBlanket={isBlanket}
+          onClick={breedingMode ? undefined : () => onTiledPreview(data)}
+          className="w-full aspect-square rounded-lg"
+        />
+      )}
 
-      <div
-        className="font-mono text-xs text-gray-400 truncate cursor-pointer hover:text-gray-200 transition-colors"
-        onClick={() => navigator.clipboard.writeText(sett.threadcount)}
-        title="Click to copy threadcount"
-      >
-        {sett.threadcount}
-      </div>
-
-      <div className="flex justify-between text-xs text-gray-500">
-        <span>{expanded.length} threads</span>
-        <span>{settInches}" sett</span>
-        <span>{sett.colors.length} colors</span>
-      </div>
+      {imagePattern ? (
+        <>
+          <div className="font-mono text-xs text-gray-400 truncate">
+            {imagePattern.repeatMode} repeat · {imagePattern.pixelSize}x scale
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Image tile</span>
+            <span>{imagePattern.repeatMode}</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div
+            className="font-mono text-xs text-gray-400 truncate cursor-pointer hover:text-gray-200 transition-colors"
+            onClick={() => navigator.clipboard.writeText(sett.threadcount)}
+            title="Click to copy threadcount"
+          >
+            {sett.threadcount}
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{expanded.length} threads</span>
+            <span>{settInches}" sett</span>
+            <span>{sett.colors.length} colors</span>
+          </div>
+        </>
+      )}
 
       <div className="flex gap-1.5 flex-wrap">
         <button onClick={() => onMutate(data)} className="btn-secondary text-xs flex-1 min-w-[60px]" title="Generate variations">
@@ -2594,6 +2663,331 @@ function ColorExtractor({
 
           {/* Hidden canvas for processing */}
           <canvas ref={canvasRef} className="hidden" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// IMAGE PATTERN BUILDER - Convert images to tileable swatches
+// ============================================================================
+
+interface ImagePatternConfig {
+  pixelSize: number;      // Size of each "pixel" in the output
+  colorCount: number;     // Number of colors to reduce to
+  repeatMode: TileRepeatMode;
+  tileScale: number;      // How many times to repeat the tile
+}
+
+const REPEAT_MODES: { id: TileRepeatMode; name: string; icon: string; description: string }[] = [
+  { id: 'normal', name: 'Grid', icon: '⊞', description: 'Standard grid repeat' },
+  { id: 'brick', name: 'Brick', icon: '⊟', description: 'Offset rows like bricks' },
+  { id: 'half-drop', name: 'Half-Drop', icon: '⋮', description: 'Offset columns' },
+  { id: 'mirror', name: 'Mirror', icon: '⧎', description: 'Reflect horizontally and vertically' },
+  { id: 'random', name: 'Scatter', icon: '⁘', description: 'Random placement' },
+];
+
+function ImagePatternBuilder({
+  onClose,
+  onCreatePattern,
+}: {
+  onClose: () => void;
+  onCreatePattern: (imageData: string, config: ImagePatternConfig) => void;
+}) {
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [config, setConfig] = useState<ImagePatternConfig>({
+    pixelSize: 4,
+    colorCount: 8,
+    repeatMode: 'normal',
+    tileScale: 3,
+  });
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const sourceCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setUploadedImage(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Process image into pixelated, color-reduced version
+  useEffect(() => {
+    if (!uploadedImage) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = sourceCanvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Calculate tile size (target ~32-64 pixels for the base tile)
+      const targetSize = 48;
+      const aspectRatio = img.width / img.height;
+      const tileWidth = aspectRatio >= 1 ? targetSize : Math.round(targetSize * aspectRatio);
+      const tileHeight = aspectRatio >= 1 ? Math.round(targetSize / aspectRatio) : targetSize;
+
+      canvas.width = tileWidth;
+      canvas.height = tileHeight;
+
+      // Draw scaled-down image
+      ctx.drawImage(img, 0, 0, tileWidth, tileHeight);
+
+      // Get pixels and quantize colors
+      const imageData = ctx.getImageData(0, 0, tileWidth, tileHeight);
+      const pixels = imageData.data;
+
+      // Build color palette (median cut approximation)
+      const colorMap = new Map<string, number>();
+      const quantize = Math.round(256 / Math.pow(config.colorCount, 1/3) * 2);
+
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = Math.round(pixels[i] / quantize) * quantize;
+        const g = Math.round(pixels[i + 1] / quantize) * quantize;
+        const b = Math.round(pixels[i + 2] / quantize) * quantize;
+        const key = `${r},${g},${b}`;
+        colorMap.set(key, (colorMap.get(key) || 0) + 1);
+      }
+
+      // Get top N colors
+      const palette = Array.from(colorMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, config.colorCount)
+        .map(([key]) => key.split(',').map(Number));
+
+      // Remap each pixel to nearest palette color
+      for (let i = 0; i < pixels.length; i += 4) {
+        let bestDist = Infinity;
+        let bestColor = palette[0];
+
+        for (const [r, g, b] of palette) {
+          const dist = Math.abs(pixels[i] - r) + Math.abs(pixels[i + 1] - g) + Math.abs(pixels[i + 2] - b);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestColor = [r, g, b];
+          }
+        }
+
+        pixels[i] = bestColor[0];
+        pixels[i + 1] = bestColor[1];
+        pixels[i + 2] = bestColor[2];
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      setProcessedImage(canvas.toDataURL());
+    };
+    img.src = uploadedImage;
+  }, [uploadedImage, config.colorCount]);
+
+  // Render tiled preview
+  useEffect(() => {
+    if (!processedImage) return;
+
+    const previewCanvas = previewCanvasRef.current;
+    if (!previewCanvas) return;
+
+    const ctx = previewCanvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const tileW = img.width * config.pixelSize;
+      const tileH = img.height * config.pixelSize;
+      const previewSize = 300;
+
+      previewCanvas.width = previewSize;
+      previewCanvas.height = previewSize;
+
+      ctx.imageSmoothingEnabled = false;
+
+      const tilesX = Math.ceil(previewSize / tileW) + 1;
+      const tilesY = Math.ceil(previewSize / tileH) + 1;
+
+      for (let ty = 0; ty < tilesY; ty++) {
+        for (let tx = 0; tx < tilesX; tx++) {
+          let x = tx * tileW;
+          let y = ty * tileH;
+          let scaleX = 1;
+          let scaleY = 1;
+
+          switch (config.repeatMode) {
+            case 'brick':
+              if (ty % 2 === 1) x += tileW / 2;
+              break;
+            case 'half-drop':
+              if (tx % 2 === 1) y += tileH / 2;
+              break;
+            case 'mirror':
+              if (tx % 2 === 1) scaleX = -1;
+              if (ty % 2 === 1) scaleY = -1;
+              break;
+            case 'random':
+              x += (Math.random() - 0.5) * 20;
+              y += (Math.random() - 0.5) * 20;
+              break;
+          }
+
+          ctx.save();
+          if (scaleX === -1 || scaleY === -1) {
+            ctx.translate(x + tileW / 2, y + tileH / 2);
+            ctx.scale(scaleX, scaleY);
+            ctx.drawImage(img, -tileW / 2, -tileH / 2, tileW, tileH);
+          } else {
+            ctx.drawImage(img, x, y, tileW, tileH);
+          }
+          ctx.restore();
+        }
+      }
+    };
+    img.src = processedImage;
+  }, [processedImage, config.pixelSize, config.repeatMode]);
+
+  const handleCreate = () => {
+    if (processedImage) {
+      onCreatePattern(processedImage, config);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-gray-800">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">🖼️ Image Pattern Builder</h2>
+            <p className="text-sm text-gray-400 mt-1">Convert any image to a tileable swatch pattern</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Upload */}
+          <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+              id="pattern-image-upload"
+            />
+            <label htmlFor="pattern-image-upload" className="cursor-pointer block">
+              {uploadedImage ? (
+                <div className="flex items-center justify-center gap-6">
+                  <img src={uploadedImage} alt="Original" className="max-h-32 rounded-lg" />
+                  <div className="text-2xl">→</div>
+                  {processedImage && (
+                    <img
+                      src={processedImage}
+                      alt="Processed"
+                      className="h-32 rounded-lg border-2 border-indigo-500"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="text-5xl mb-3">🖼️</div>
+                  <p className="text-gray-400">Click to upload an image</p>
+                  <p className="text-xs text-gray-600 mt-1">Photos, artwork, textures - anything!</p>
+                </>
+              )}
+            </label>
+          </div>
+
+          {uploadedImage && (
+            <>
+              {/* Controls */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">
+                    Pixel Scale: {config.pixelSize}x
+                  </label>
+                  <input
+                    type="range"
+                    min="2"
+                    max="8"
+                    value={config.pixelSize}
+                    onChange={(e) => setConfig(prev => ({ ...prev, pixelSize: parseInt(e.target.value) }))}
+                    className="slider w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400 mb-2 block">
+                    Colors: {config.colorCount}
+                  </label>
+                  <input
+                    type="range"
+                    min="2"
+                    max="16"
+                    value={config.colorCount}
+                    onChange={(e) => setConfig(prev => ({ ...prev, colorCount: parseInt(e.target.value) }))}
+                    className="slider w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Repeat Modes */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Tile Repeat Mode</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {REPEAT_MODES.map(mode => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setConfig(prev => ({ ...prev, repeatMode: mode.id }))}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        config.repeatMode === mode.id
+                          ? 'border-indigo-500 bg-indigo-900/30 text-white'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                      }`}
+                      title={mode.description}
+                    >
+                      <div className="text-2xl mb-1">{mode.icon}</div>
+                      <div className="text-xs">{mode.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Pattern Preview</label>
+                <div className="flex gap-4 items-start">
+                  <canvas
+                    ref={previewCanvasRef}
+                    className="flex-1 rounded-lg border border-gray-700"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Hidden processing canvas */}
+          <canvas ref={sourceCanvasRef} className="hidden" />
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-800">
+          <button
+            onClick={handleCreate}
+            disabled={!processedImage}
+            className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              processedImage
+                ? 'bg-indigo-600 text-white hover:bg-indigo-500'
+                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Add Pattern to Collection
+          </button>
         </div>
       </div>
     </div>
@@ -5160,6 +5554,7 @@ export default function App() {
   const [productMockupData, setProductMockupData] = useState<TartanCardData | null>(null);
   const [showColorExtractor, setShowColorExtractor] = useState(false);
   const [showGeometricBuilder, setShowGeometricBuilder] = useState(false);
+  const [showImagePatternBuilder, setShowImagePatternBuilder] = useState(false);
   const [showKnittingChart, setShowKnittingChart] = useState(false);
   const [customColors, setCustomColors] = useState<CustomColor[]>(() => {
     const saved = localStorage.getItem('tartanism-custom-colors');
@@ -5361,6 +5756,30 @@ export default function App() {
     setTartans(prev => [newTartan, ...prev]);
     setShowGeometricBuilder(false);
   }, [config.opticalMode]);
+
+  const handleCreateImagePattern = useCallback((imageData: string, patternConfig: ImagePatternConfig) => {
+    // Create a placeholder sett (image patterns don't use threadcount)
+    const placeholderSett = parseThreadcount('K/8 W8');
+    if (!placeholderSett) return;
+
+    const newPattern: TartanCardData = {
+      id: `img-${Date.now()}`,
+      result: {
+        sett: placeholderSett,
+        seed: Date.now(),
+        constraints: DEFAULT_CONSTRAINTS,
+        signature: { signature: 'image-pattern', structureSignature: '', proportionSignature: '' }
+      },
+      imagePattern: {
+        imageData,
+        repeatMode: patternConfig.repeatMode,
+        pixelSize: patternConfig.pixelSize,
+      },
+    };
+
+    setTartans(prev => [newPattern, ...prev]);
+    setShowImagePatternBuilder(false);
+  }, []);
 
   const handleMutate = useCallback((data: TartanCardData) => {
     const { sett, seed } = data.result;
@@ -5590,6 +6009,12 @@ export default function App() {
               className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
             >
               ◇ Geometric
+            </button>
+            <button
+              onClick={() => setShowImagePatternBuilder(true)}
+              className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+            >
+              🖼️ Image
             </button>
             <button
               onClick={() => setShowKnittingChart(true)}
@@ -5863,6 +6288,13 @@ export default function App() {
         <GeometricPatternBuilder
           onClose={() => setShowGeometricBuilder(false)}
           onCreatePattern={handleCreateGeometricPattern}
+        />
+      )}
+
+      {showImagePatternBuilder && (
+        <ImagePatternBuilder
+          onClose={() => setShowImagePatternBuilder(false)}
+          onCreatePattern={handleCreateImagePattern}
         />
       )}
 
