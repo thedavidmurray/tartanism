@@ -2026,6 +2026,7 @@ function ProductMockups({ data, config, customColors, onClose }: ProductMockupPr
     { id: 'pillow', name: 'Pillow', icon: '🛋️', aspectRatio: 1, repeats: 3, description: 'Accent pillow' },
     { id: 'kilt', name: 'Kilt', icon: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', aspectRatio: 2.5, repeats: 6, description: 'Traditional kilt' },
     { id: 'bag', name: 'Tote Bag', icon: '👜', aspectRatio: 0.9, repeats: 4, description: 'Shopping tote' },
+    { id: 'flag', name: 'Flag', icon: '🚩', aspectRatio: 1.5, repeats: 5, description: 'Banner flag' },
   ];
 
   const currentProduct = products.find(p => p.id === selectedProduct) || products[0];
@@ -2231,15 +2232,27 @@ function ProductMockups({ data, config, customColors, onClose }: ProductMockupPr
 function ColorExtractor({
   onClose,
   onColorsExtracted,
+  onSaveAsYarn,
 }: {
   onClose: () => void;
   onColorsExtracted: (colors: string[]) => void;
+  onSaveAsYarn: (hex: string, name: string) => void;
 }) {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [extractedColors, setExtractedColors] = useState<{ hex: string; count: number }[]>([]);
   const [colorCount, setColorCount] = useState(6);
+  const [savingColorIdx, setSavingColorIdx] = useState<number | null>(null);
+  const [yarnName, setYarnName] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handleSaveYarn = (idx: number) => {
+    if (!yarnName.trim()) return;
+    const color = extractedColors[idx];
+    onSaveAsYarn(color.hex, yarnName.trim());
+    setSavingColorIdx(null);
+    setYarnName('');
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2440,15 +2453,54 @@ function ColorExtractor({
           {/* Extracted Colors */}
           {extractedColors.length > 0 && (
             <div>
-              <label className="text-sm text-gray-400 mb-2 block">Extracted Palette</label>
-              <div className="flex gap-2 flex-wrap">
+              <label className="text-sm text-gray-400 mb-2 block">Extracted Palette - Click to save as yarn</label>
+              <div className="flex gap-3 flex-wrap">
                 {extractedColors.map((color, idx) => (
-                  <div
-                    key={idx}
-                    className="w-12 h-12 rounded-lg shadow-lg border border-gray-700"
-                    style={{ backgroundColor: color.hex }}
-                    title={color.hex}
-                  />
+                  <div key={idx} className="relative group">
+                    <div
+                      className="w-14 h-14 rounded-lg shadow-lg border-2 border-gray-700 cursor-pointer hover:border-indigo-500 transition-all hover:scale-105"
+                      style={{ backgroundColor: color.hex }}
+                      title={`${color.hex} - Click to save as yarn`}
+                      onClick={() => {
+                        setSavingColorIdx(idx);
+                        setYarnName('');
+                      }}
+                    />
+                    {savingColorIdx === idx && (
+                      <div className="absolute top-16 left-0 z-10 bg-gray-800 rounded-lg p-3 shadow-xl border border-gray-700 w-48">
+                        <input
+                          type="text"
+                          placeholder="Yarn name..."
+                          value={yarnName}
+                          onChange={(e) => setYarnName(e.target.value)}
+                          className="w-full px-2 py-1 bg-gray-900 border border-gray-600 rounded text-sm text-white mb-2"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveYarn(idx);
+                            if (e.key === 'Escape') setSavingColorIdx(null);
+                          }}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveYarn(idx)}
+                            className="flex-1 btn-primary text-xs py-1"
+                            disabled={!yarnName.trim()}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setSavingColorIdx(null)}
+                            className="flex-1 btn-secondary text-xs py-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] bg-gray-800 px-1 rounded">+yarn</span>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -2634,9 +2686,9 @@ function GeometricPatternBuilder({
     return tc;
   }, [patternType, colors, complexity, symmetry]);
 
-  // Draw preview
+  // Draw preview with actual geometric shapes (not tartan grid)
   useEffect(() => {
-    const tc = generatePattern();
+    generatePattern(); // Keep threadcount updated
 
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
@@ -2648,44 +2700,132 @@ function GeometricPatternBuilder({
     canvas.width = size;
     canvas.height = size;
 
-    // Parse and draw the pattern
-    const parts = tc.split(' ').filter(p => p.trim());
-    const stripes: { color: string; count: number }[] = [];
+    // Get colors for the pattern
+    const getHex = (code: string): string => {
+      const color = getColor(code);
+      return color?.hex || '#808080';
+    };
 
-    for (const part of parts) {
-      const match = part.match(/([A-Z]+)\/?(\d+)/i);
-      if (match) {
-        stripes.push({ color: match[1], count: parseInt(match[2]) });
-      }
+    // Background
+    ctx.fillStyle = getHex(colors[0]);
+    ctx.fillRect(0, 0, size, size);
+
+    const baseCount = 8 + complexity * 4;
+
+    switch (patternType) {
+      case 'stripes':
+        // Horizontal blanket stripes
+        const stripeHeight = size / (complexity * 2 + 4);
+        for (let i = 0; i < complexity * 2 + 4; i++) {
+          ctx.fillStyle = getHex(colors[i % colors.length]);
+          const h = i % 3 === 0 ? stripeHeight * 2 : stripeHeight * 0.5;
+          ctx.fillRect(0, i * stripeHeight, size, h + 1);
+        }
+        break;
+
+      case 'diamonds':
+        // Draw concentric diamonds
+        const diamondLayers = complexity + 2;
+        for (let layer = diamondLayers; layer >= 0; layer--) {
+          const layerSize = (size / 2) * (layer / diamondLayers);
+          ctx.fillStyle = getHex(colors[layer % colors.length]);
+          ctx.beginPath();
+          ctx.moveTo(size / 2, size / 2 - layerSize); // top
+          ctx.lineTo(size / 2 + layerSize, size / 2); // right
+          ctx.lineTo(size / 2, size / 2 + layerSize); // bottom
+          ctx.lineTo(size / 2 - layerSize, size / 2); // left
+          ctx.closePath();
+          ctx.fill();
+        }
+        break;
+
+      case 'chevron':
+        // V-shaped chevron bands
+        const chevronHeight = size / (complexity + 3);
+        for (let i = 0; i < complexity + 3; i++) {
+          ctx.fillStyle = getHex(colors[i % colors.length]);
+          ctx.beginPath();
+          const y1 = i * chevronHeight;
+          const y2 = (i + 1) * chevronHeight;
+          ctx.moveTo(0, y1);
+          ctx.lineTo(size / 2, y1 + chevronHeight / 2);
+          ctx.lineTo(size, y1);
+          ctx.lineTo(size, y2);
+          ctx.lineTo(size / 2, y2 + chevronHeight / 2);
+          ctx.lineTo(0, y2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        break;
+
+      case 'steps':
+        // Stair-step pattern
+        const stepSize = size / (complexity + 3);
+        for (let i = 0; i < complexity + 3; i++) {
+          ctx.fillStyle = getHex(colors[i % colors.length]);
+          for (let j = 0; j <= i; j++) {
+            ctx.fillRect(j * stepSize, i * stepSize, stepSize + 1, stepSize + 1);
+            ctx.fillRect((size - (j + 1) * stepSize), i * stepSize, stepSize + 1, stepSize + 1);
+          }
+        }
+        break;
+
+      case 'arrows':
+        // Arrow/pointer shapes pointing up
+        const arrowCount = complexity + 2;
+        const arrowHeight = size / arrowCount;
+        for (let i = 0; i < arrowCount; i++) {
+          ctx.fillStyle = getHex(colors[i % colors.length]);
+          const y = i * arrowHeight;
+          const arrowWidth = size * (0.3 + (i % 3) * 0.2);
+          ctx.beginPath();
+          ctx.moveTo(size / 2, y);
+          ctx.lineTo(size / 2 + arrowWidth / 2, y + arrowHeight);
+          ctx.lineTo(size / 2 - arrowWidth / 2, y + arrowHeight);
+          ctx.closePath();
+          ctx.fill();
+        }
+        break;
+
+      case 'zigzag':
+        // Dynamic zigzag lines
+        const zigWidth = size / (complexity + 2);
+        const zigHeight = size / 4;
+        for (let row = 0; row < 4; row++) {
+          for (let i = 0; i < complexity + 2; i++) {
+            ctx.fillStyle = getHex(colors[(row + i) % colors.length]);
+            ctx.beginPath();
+            const x = i * zigWidth;
+            const y = row * zigHeight;
+            const offset = row % 2 === 0 ? 0 : zigWidth / 2;
+            ctx.moveTo(x + offset, y);
+            ctx.lineTo(x + zigWidth / 2 + offset, y + zigHeight);
+            ctx.lineTo(x + offset, y + zigHeight);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+        break;
+
+      case 'bands':
+        // Wide bold horizontal color blocks
+        const bandHeight = size / (complexity + 2);
+        for (let i = 0; i < complexity + 2; i++) {
+          ctx.fillStyle = getHex(colors[i % colors.length]);
+          ctx.fillRect(0, i * bandHeight, size, bandHeight - 4);
+          // Add thin black separator
+          ctx.fillStyle = getHex('K');
+          ctx.fillRect(0, (i + 1) * bandHeight - 4, size, 4);
+        }
+        break;
     }
 
-    if (stripes.length === 0) return;
+    // Add subtle border
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, size, size);
 
-    const totalThreads = stripes.reduce((sum, s) => sum + s.count, 0);
-    let y = 0;
-
-    // Draw horizontal stripes
-    for (const stripe of stripes) {
-      const stripeHeight = (stripe.count / totalThreads) * size;
-      const colorData = getColor(stripe.color);
-      ctx.fillStyle = colorData?.hex || '#808080';
-      ctx.fillRect(0, y, size, stripeHeight + 1);
-      y += stripeHeight;
-    }
-
-    // Overlay vertical stripes for tartan effect
-    ctx.globalAlpha = 0.4;
-    let x = 0;
-    for (const stripe of stripes) {
-      const stripeWidth = (stripe.count / totalThreads) * size;
-      const colorData = getColor(stripe.color);
-      ctx.fillStyle = colorData?.hex || '#808080';
-      ctx.fillRect(x, 0, stripeWidth + 1, size);
-      x += stripeWidth;
-    }
-    ctx.globalAlpha = 1;
-
-  }, [patternType, colorPalette, complexity, symmetry, generatePattern]);
+  }, [patternType, colorPalette, complexity, symmetry, colors, generatePattern]);
 
   const handleCreate = () => {
     if (generatedThreadcount) {
@@ -2819,6 +2959,474 @@ function GeometricPatternBuilder({
                 Add to Collection
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// KNITTING CHART BUILDER - Aran/Cable Stitch Patterns
+// ============================================================================
+
+type StitchType = 'knit' | 'purl' | 'cable4f' | 'cable4b' | 'cable6f' | 'cable6b' | 'moss' | 'seed' | 'honeycomb' | 'trinity' | 'basket';
+
+interface StitchPattern {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+  width: number;
+  height: number;
+  chart: StitchType[][];
+}
+
+// Classic Aran stitch patterns
+const ARAN_PATTERNS: StitchPattern[] = [
+  {
+    id: 'cable4',
+    name: '4-Stitch Cable',
+    symbol: '⫘',
+    description: 'Classic rope cable',
+    width: 6,
+    height: 8,
+    chart: [
+      ['purl', 'cable4f', 'cable4f', 'cable4f', 'cable4f', 'purl'],
+      ['purl', 'knit', 'knit', 'knit', 'knit', 'purl'],
+      ['purl', 'knit', 'knit', 'knit', 'knit', 'purl'],
+      ['purl', 'knit', 'knit', 'knit', 'knit', 'purl'],
+      ['purl', 'cable4b', 'cable4b', 'cable4b', 'cable4b', 'purl'],
+      ['purl', 'knit', 'knit', 'knit', 'knit', 'purl'],
+      ['purl', 'knit', 'knit', 'knit', 'knit', 'purl'],
+      ['purl', 'knit', 'knit', 'knit', 'knit', 'purl'],
+    ],
+  },
+  {
+    id: 'honeycomb',
+    name: 'Honeycomb',
+    symbol: '⬡',
+    description: 'Interlocking diamond texture',
+    width: 8,
+    height: 8,
+    chart: [
+      ['cable4f', 'cable4f', 'cable4f', 'cable4f', 'cable4b', 'cable4b', 'cable4b', 'cable4b'],
+      ['knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit'],
+      ['knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit'],
+      ['knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit'],
+      ['cable4b', 'cable4b', 'cable4b', 'cable4b', 'cable4f', 'cable4f', 'cable4f', 'cable4f'],
+      ['knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit'],
+      ['knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit'],
+      ['knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit', 'knit'],
+    ],
+  },
+  {
+    id: 'moss',
+    name: 'Moss Stitch',
+    symbol: '⁘',
+    description: 'Textured seed pattern',
+    width: 4,
+    height: 4,
+    chart: [
+      ['knit', 'purl', 'knit', 'purl'],
+      ['purl', 'knit', 'purl', 'knit'],
+      ['purl', 'knit', 'purl', 'knit'],
+      ['knit', 'purl', 'knit', 'purl'],
+    ],
+  },
+  {
+    id: 'trinity',
+    name: 'Trinity/Blackberry',
+    symbol: '⁂',
+    description: 'Bobble texture stitch',
+    width: 4,
+    height: 4,
+    chart: [
+      ['trinity', 'purl', 'trinity', 'purl'],
+      ['purl', 'purl', 'purl', 'purl'],
+      ['purl', 'trinity', 'purl', 'trinity'],
+      ['purl', 'purl', 'purl', 'purl'],
+    ],
+  },
+  {
+    id: 'basket',
+    name: 'Basket Weave',
+    symbol: '⊞',
+    description: 'Woven texture pattern',
+    width: 8,
+    height: 8,
+    chart: [
+      ['knit', 'knit', 'knit', 'knit', 'purl', 'purl', 'purl', 'purl'],
+      ['knit', 'knit', 'knit', 'knit', 'purl', 'purl', 'purl', 'purl'],
+      ['knit', 'knit', 'knit', 'knit', 'purl', 'purl', 'purl', 'purl'],
+      ['knit', 'knit', 'knit', 'knit', 'purl', 'purl', 'purl', 'purl'],
+      ['purl', 'purl', 'purl', 'purl', 'knit', 'knit', 'knit', 'knit'],
+      ['purl', 'purl', 'purl', 'purl', 'knit', 'knit', 'knit', 'knit'],
+      ['purl', 'purl', 'purl', 'purl', 'knit', 'knit', 'knit', 'knit'],
+      ['purl', 'purl', 'purl', 'purl', 'knit', 'knit', 'knit', 'knit'],
+    ],
+  },
+  {
+    id: 'diamond',
+    name: 'Diamond Cable',
+    symbol: '◇',
+    description: 'Diamond lattice pattern',
+    width: 12,
+    height: 12,
+    chart: [
+      ['purl', 'purl', 'purl', 'purl', 'purl', 'cable4f', 'cable4f', 'purl', 'purl', 'purl', 'purl', 'purl'],
+      ['purl', 'purl', 'purl', 'purl', 'cable4b', 'purl', 'purl', 'cable4f', 'purl', 'purl', 'purl', 'purl'],
+      ['purl', 'purl', 'purl', 'cable4b', 'purl', 'purl', 'purl', 'purl', 'cable4f', 'purl', 'purl', 'purl'],
+      ['purl', 'purl', 'cable4b', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'cable4f', 'purl', 'purl'],
+      ['purl', 'cable4b', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'cable4f', 'purl'],
+      ['cable4b', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'cable4f'],
+      ['cable4f', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'cable4b'],
+      ['purl', 'cable4f', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'cable4b', 'purl'],
+      ['purl', 'purl', 'cable4f', 'purl', 'purl', 'purl', 'purl', 'purl', 'purl', 'cable4b', 'purl', 'purl'],
+      ['purl', 'purl', 'purl', 'cable4f', 'purl', 'purl', 'purl', 'purl', 'cable4b', 'purl', 'purl', 'purl'],
+      ['purl', 'purl', 'purl', 'purl', 'cable4f', 'purl', 'purl', 'cable4b', 'purl', 'purl', 'purl', 'purl'],
+      ['purl', 'purl', 'purl', 'purl', 'purl', 'cable4f', 'cable4b', 'purl', 'purl', 'purl', 'purl', 'purl'],
+    ],
+  },
+];
+
+// Stitch symbols for chart display
+const STITCH_SYMBOLS: Record<StitchType, { symbol: string; color: string; name: string }> = {
+  knit: { symbol: '·', color: '#f5f5f5', name: 'Knit' },
+  purl: { symbol: '—', color: '#d4d4d4', name: 'Purl' },
+  cable4f: { symbol: '⟋', color: '#818cf8', name: 'Cable 4 Front' },
+  cable4b: { symbol: '⟍', color: '#a78bfa', name: 'Cable 4 Back' },
+  cable6f: { symbol: '⫽', color: '#6366f1', name: 'Cable 6 Front' },
+  cable6b: { symbol: '⫻', color: '#8b5cf6', name: 'Cable 6 Back' },
+  moss: { symbol: '⁘', color: '#86efac', name: 'Moss' },
+  seed: { symbol: '⁛', color: '#a7f3d0', name: 'Seed' },
+  honeycomb: { symbol: '⬡', color: '#fcd34d', name: 'Honeycomb' },
+  trinity: { symbol: '⁂', color: '#f9a8d4', name: 'Trinity' },
+  basket: { symbol: '⊞', color: '#c4b5fd', name: 'Basket' },
+};
+
+function KnittingChartBuilder({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  const [selectedPatterns, setSelectedPatterns] = useState<string[]>(['cable4']);
+  const [panelCount, setPanelCount] = useState(3);
+  const [showSymbolKey, setShowSymbolKey] = useState(true);
+  const chartCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Generate combined chart from selected patterns
+  const generateCombinedChart = useCallback(() => {
+    const patterns = selectedPatterns.map(id => ARAN_PATTERNS.find(p => p.id === id)).filter(Boolean) as StitchPattern[];
+    if (patterns.length === 0) return { chart: [], width: 0, height: 0 };
+
+    // Find max height and total width
+    const maxHeight = Math.max(...patterns.map(p => p.height));
+    const totalWidth = patterns.reduce((sum, p) => sum + p.width + 2, 0) - 2; // +2 for purl dividers
+
+    // Build combined chart
+    const chart: StitchType[][] = [];
+    for (let row = 0; row < maxHeight; row++) {
+      const chartRow: StitchType[] = [];
+      for (let pi = 0; pi < patterns.length; pi++) {
+        const pattern = patterns[pi];
+        const patternRow = row % pattern.height;
+        chartRow.push(...pattern.chart[patternRow]);
+        if (pi < patterns.length - 1) {
+          chartRow.push('purl', 'purl'); // Divider
+        }
+      }
+      chart.push(chartRow);
+    }
+
+    return { chart, width: totalWidth, height: maxHeight };
+  }, [selectedPatterns]);
+
+  // Draw the stitch chart
+  useEffect(() => {
+    const canvas = chartCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { chart, width, height } = generateCombinedChart();
+    if (chart.length === 0) return;
+
+    const cellSize = 20;
+    canvas.width = width * cellSize;
+    canvas.height = height * cellSize;
+
+    // Draw grid
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        const stitch = chart[row][col];
+        const stitchInfo = STITCH_SYMBOLS[stitch];
+
+        const x = col * cellSize;
+        const y = row * cellSize;
+
+        // Background
+        ctx.fillStyle = stitchInfo.color;
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        // Border
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+
+        // Symbol
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(stitchInfo.symbol, x + cellSize / 2, y + cellSize / 2);
+      }
+    }
+
+    // Row numbers
+    ctx.fillStyle = '#888';
+    ctx.font = '10px sans-serif';
+    for (let row = 0; row < height; row++) {
+      ctx.fillText(`${height - row}`, -12, row * cellSize + cellSize / 2);
+    }
+
+  }, [selectedPatterns, generateCombinedChart]);
+
+  // Draw knitted preview
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { chart, width, height } = generateCombinedChart();
+    if (chart.length === 0) return;
+
+    const size = 200;
+    canvas.width = size;
+    canvas.height = size;
+
+    // Simulate knitted fabric appearance
+    const stitchW = size / width;
+    const stitchH = size / height;
+
+    // Base cream/off-white yarn color
+    ctx.fillStyle = '#f5f0e6';
+    ctx.fillRect(0, 0, size, size);
+
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        const stitch = chart[row % height][col];
+        const x = col * stitchW;
+        const y = row * stitchH;
+
+        // Create texture based on stitch type
+        if (stitch === 'purl' || stitch.includes('cable')) {
+          // Raised texture - darker shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.15)';
+          ctx.fillRect(x, y, stitchW, stitchH * 0.3);
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.fillRect(x, y + stitchH * 0.7, stitchW, stitchH * 0.3);
+        }
+
+        if (stitch.includes('cable')) {
+          // Cable crossing effect
+          ctx.fillStyle = 'rgba(0,0,0,0.1)';
+          if (stitch.includes('f')) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + stitchW, y + stitchH);
+            ctx.lineTo(x + stitchW, y);
+            ctx.fill();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(x + stitchW, y);
+            ctx.lineTo(x, y + stitchH);
+            ctx.lineTo(x, y);
+            ctx.fill();
+          }
+        }
+
+        if (stitch === 'trinity') {
+          // Bobble effect
+          ctx.fillStyle = 'rgba(0,0,0,0.1)';
+          ctx.beginPath();
+          ctx.arc(x + stitchW / 2, y + stitchH / 2, stitchW * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Tile the pattern for full sweater preview
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = size;
+    tempCanvas.height = size;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (tempCtx) {
+      tempCtx.drawImage(canvas, 0, 0);
+      // Tile 2x2
+      ctx.drawImage(tempCanvas, 0, 0, size / 2, size / 2);
+      ctx.drawImage(tempCanvas, size / 2, 0, size / 2, size / 2);
+      ctx.drawImage(tempCanvas, 0, size / 2, size / 2, size / 2);
+      ctx.drawImage(tempCanvas, size / 2, size / 2, size / 2, size / 2);
+    }
+
+  }, [selectedPatterns, generateCombinedChart]);
+
+  const togglePattern = (id: string) => {
+    setSelectedPatterns(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(p => p !== id);
+      }
+      if (prev.length < panelCount) {
+        return [...prev, id];
+      }
+      return prev;
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-800">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Knitting Chart Builder</h2>
+            <p className="text-sm text-gray-400 mt-1">Create Aran/Irish cable patterns</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Pattern Selection */}
+          <div>
+            <label className="text-sm text-gray-400 mb-3 block">
+              Select Stitch Patterns (up to {panelCount})
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {ARAN_PATTERNS.map(pattern => (
+                <button
+                  key={pattern.id}
+                  onClick={() => togglePattern(pattern.id)}
+                  className={`p-3 rounded-lg text-left transition-all ${
+                    selectedPatterns.includes(pattern.id)
+                      ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  } ${selectedPatterns.length >= panelCount && !selectedPatterns.includes(pattern.id) ? 'opacity-50' : ''}`}
+                  disabled={selectedPatterns.length >= panelCount && !selectedPatterns.includes(pattern.id)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{pattern.symbol}</span>
+                    <div>
+                      <div className="font-medium text-sm">{pattern.name}</div>
+                      <div className="text-xs opacity-70">{pattern.description}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Panel Count */}
+          <div>
+            <label className="text-sm text-gray-400 mb-2 block">
+              Panel Count: {panelCount}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={panelCount}
+              onChange={(e) => {
+                const count = parseInt(e.target.value);
+                setPanelCount(count);
+                if (selectedPatterns.length > count) {
+                  setSelectedPatterns(prev => prev.slice(0, count));
+                }
+              }}
+              className="slider w-full"
+            />
+          </div>
+
+          {/* Chart and Preview */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm text-gray-400">Stitch Chart</label>
+                <button
+                  onClick={() => setShowSymbolKey(!showSymbolKey)}
+                  className="text-xs text-indigo-400 hover:text-indigo-300"
+                >
+                  {showSymbolKey ? 'Hide' : 'Show'} Key
+                </button>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-4 overflow-auto max-h-64">
+                <canvas
+                  ref={chartCanvasRef}
+                  className="mx-auto"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </div>
+              {showSymbolKey && (
+                <div className="mt-3 grid grid-cols-2 gap-1 text-xs">
+                  {Object.entries(STITCH_SYMBOLS).slice(0, 6).map(([key, info]) => (
+                    <div key={key} className="flex items-center gap-1 text-gray-400">
+                      <span
+                        className="w-5 h-5 flex items-center justify-center rounded text-sm"
+                        style={{ backgroundColor: info.color, color: '#333' }}
+                      >
+                        {info.symbol}
+                      </span>
+                      <span>{info.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">Knitted Preview</label>
+              <canvas
+                ref={previewCanvasRef}
+                className="w-full aspect-square rounded-lg border border-gray-700"
+              />
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Simulated Aran sweater texture
+              </p>
+            </div>
+          </div>
+
+          {/* Download/Export */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                const canvas = chartCanvasRef.current;
+                if (!canvas) return;
+                const link = document.createElement('a');
+                link.download = 'knitting-chart.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+              }}
+              className="btn-primary flex-1"
+            >
+              Download Chart
+            </button>
+            <button
+              onClick={() => {
+                const canvas = previewCanvasRef.current;
+                if (!canvas) return;
+                const link = document.createElement('a');
+                link.download = 'knitted-preview.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+              }}
+              className="btn-secondary flex-1"
+            >
+              Download Preview
+            </button>
           </div>
         </div>
       </div>
@@ -4488,6 +5096,7 @@ export default function App() {
   const [productMockupData, setProductMockupData] = useState<TartanCardData | null>(null);
   const [showColorExtractor, setShowColorExtractor] = useState(false);
   const [showGeometricBuilder, setShowGeometricBuilder] = useState(false);
+  const [showKnittingChart, setShowKnittingChart] = useState(false);
   const [customColors, setCustomColors] = useState<CustomColor[]>(() => {
     const saved = localStorage.getItem('tartanism-custom-colors');
     return saved ? JSON.parse(saved) : [];
@@ -4645,6 +5254,29 @@ export default function App() {
   const handleColorsExtracted = useCallback((colors: string[]) => {
     setConfig(prev => ({ ...prev, allowedColors: colors }));
   }, []);
+
+  // Save extracted color as custom yarn
+  const handleSaveExtractedYarn = useCallback((hex: string, name: string) => {
+    // Generate a unique code from the name (first 2-3 chars uppercase)
+    const baseCode = name.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 3) || 'CX';
+    let code = baseCode;
+    let counter = 1;
+    // Ensure unique code
+    while (customColors.some(c => c.code === code) || getColor(code)) {
+      code = `${baseCode}${counter}`;
+      counter++;
+    }
+
+    const newYarn: CustomColor = {
+      code,
+      name,
+      hex,
+    };
+
+    const updatedColors = [...customColors, newYarn];
+    setCustomColors(updatedColors);
+    localStorage.setItem('tartanism-custom-colors', JSON.stringify(updatedColors));
+  }, [customColors]);
 
   const handleCreateGeometricPattern = useCallback((threadcount: string) => {
     const parsed = parseThreadcount(threadcount);
@@ -4893,6 +5525,12 @@ export default function App() {
               className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
             >
               ◇ Geometric
+            </button>
+            <button
+              onClick={() => setShowKnittingChart(true)}
+              className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+            >
+              🧶 Knit
             </button>
             {tartans.length >= 2 && (
               <button
@@ -5152,6 +5790,7 @@ export default function App() {
         <ColorExtractor
           onClose={() => setShowColorExtractor(false)}
           onColorsExtracted={handleColorsExtracted}
+          onSaveAsYarn={handleSaveExtractedYarn}
         />
       )}
 
@@ -5159,6 +5798,12 @@ export default function App() {
         <GeometricPatternBuilder
           onClose={() => setShowGeometricBuilder(false)}
           onCreatePattern={handleCreateGeometricPattern}
+        />
+      )}
+
+      {showKnittingChart && (
+        <KnittingChartBuilder
+          onClose={() => setShowKnittingChart(false)}
         />
       )}
     </div>
