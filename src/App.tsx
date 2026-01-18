@@ -1594,7 +1594,7 @@ function TiledPreviewModal({
   customColors?: CustomColor[];
   onClose: () => void;
 }) {
-  const [tileSize, setTileSize] = useState<TileSize>('pocket');
+  const [tileSize, setTileSize] = useState<TileSize>('scarf');
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(2);
   const { sett } = data.result;
@@ -1603,18 +1603,19 @@ function TiledPreviewModal({
   const tileConfig = TILE_SIZES[tileSize];
   const physicalSize = (settInches * tileConfig.repeats).toFixed(1);
 
-  // Responsive scale calculation
+  // Calculate scale to FILL available space
   useEffect(() => {
     const calculateScale = () => {
       if (!containerRef.current) return;
-      const containerWidth = containerRef.current.clientWidth - 32; // padding
-      const containerHeight = window.innerHeight * 0.5; // 50vh max for canvas
+      const containerWidth = containerRef.current.clientWidth;
+      const containerHeight = containerRef.current.clientHeight - 80; // space for buttons/text
       const patternSize = expanded.length * tileConfig.repeats;
 
-      // Calculate scale to fit within container
+      // Scale to fill the container (use the larger dimension to fill)
       const scaleX = containerWidth / patternSize;
       const scaleY = containerHeight / patternSize;
-      const newScale = Math.max(1, Math.min(4, Math.floor(Math.min(scaleX, scaleY))));
+      // Use the smaller of the two to fit, but ensure we fill as much as possible
+      const newScale = Math.max(1, Math.min(scaleX, scaleY));
       setScale(newScale);
     };
 
@@ -1624,49 +1625,43 @@ function TiledPreviewModal({
   }, [expanded.length, tileConfig.repeats]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="card w-full max-w-[95vw] sm:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-3 sm:p-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-semibold">Tiled Preview</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-2">
+      <div className="card w-full h-full max-w-[98vw] max-h-[98vh] overflow-hidden flex flex-col">
+        <div className="p-3 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Tiled Preview</h2>
+            <div className="flex flex-wrap gap-1">
+              {(Object.keys(TILE_SIZES) as TileSize[]).map(size => (
+                <button
+                  key={size}
+                  onClick={() => setTileSize(size)}
+                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                    tileSize === size
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}
+                >
+                  {TILE_SIZES[size].name}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-gray-500">
+              {tileConfig.repeats}x{tileConfig.repeats} = ~{physicalSize}"
+            </span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl px-2">&times;</button>
         </div>
 
-        <div ref={containerRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
-          <div className="flex flex-wrap gap-1 sm:gap-2">
-            {(Object.keys(TILE_SIZES) as TileSize[]).map(size => (
-              <button
-                key={size}
-                onClick={() => setTileSize(size)}
-                className={`px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base rounded-lg transition-colors ${
-                  tileSize === size
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}
-              >
-                {TILE_SIZES[size].name}
-              </button>
-            ))}
-          </div>
-
-          <div className="text-xs sm:text-sm text-gray-400">
-            {tileConfig.repeats}x{tileConfig.repeats} repeats = ~{physicalSize}" x {physicalSize}"
-          </div>
-
-          <div className="overflow-auto flex justify-center">
-            <TartanCanvas
-              sett={sett}
-              weaveType={config.weaveType}
-              scale={scale}
-              repeats={tileConfig.repeats}
-              shapeMask={data.isOptical ? config.shapeMask : undefined}
-              customColors={customColors}
-              className="rounded-lg max-w-full"
-            />
-          </div>
-        </div>
-
-        <div className="p-3 sm:p-4 border-t border-gray-800 flex gap-3 justify-end">
-          <button onClick={onClose} className="btn-secondary">Close</button>
+        <div ref={containerRef} className="flex-1 overflow-hidden flex items-center justify-center p-2">
+          <TartanCanvas
+            sett={sett}
+            weaveType={config.weaveType}
+            scale={scale}
+            repeats={tileConfig.repeats}
+            shapeMask={data.isOptical ? config.shapeMask : undefined}
+            customColors={customColors}
+            className="rounded-lg"
+          />
         </div>
       </div>
     </div>
