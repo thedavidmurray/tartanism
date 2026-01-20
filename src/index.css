@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,6 +8,7 @@
   :root {
     --color-primary: 220 100% 50%;
     --color-secondary: 160 100% 40%;
+    --color-accent: 280 80% 60%;
   }
 
   html {
@@ -14,108 +17,232 @@
 
   body {
     @apply antialiased;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(180deg, #0a0a0f 0%, #0d0d14 50%, #0a0a0f 100%);
+    min-height: 100vh;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-lg font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 active:scale-95;
+    @apply px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400
+           rounded-xl font-semibold text-white shadow-lg shadow-indigo-500/20
+           transition-all duration-300 active:scale-[0.98] hover:shadow-indigo-500/30 hover:shadow-xl
+           text-sm;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-medium text-gray-200 transition-all duration-200 active:scale-95;
+    @apply px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20
+           rounded-xl font-medium text-gray-200 transition-all duration-300 active:scale-[0.98]
+           text-sm backdrop-blur-sm;
+  }
+
+  .btn-icon {
+    @apply p-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20
+           rounded-lg text-gray-400 hover:text-white transition-all duration-200
+           backdrop-blur-sm;
   }
 
   .card {
-    @apply bg-gray-900/80 backdrop-blur border border-gray-800 rounded-xl shadow-xl;
+    @apply bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl
+           border border-white/10 rounded-2xl shadow-2xl shadow-black/20
+           transition-all duration-300 hover:border-white/20 hover:shadow-black/30;
+  }
+
+  .card-compact {
+    @apply bg-white/[0.04] backdrop-blur border border-white/[0.06] rounded-xl
+           transition-all duration-200 hover:bg-white/[0.06] hover:border-white/10;
   }
 
   .input {
-    @apply w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all;
+    @apply w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg
+           text-gray-100 placeholder-gray-500
+           focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 focus:bg-black/40
+           outline-none transition-all text-sm;
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-400 mb-1.5;
+    @apply block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider;
   }
 
   .slider {
-    @apply w-full h-2 bg-gray-700 rounded-full appearance-none cursor-pointer;
+    @apply w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer;
   }
 
   .slider::-webkit-slider-thumb {
-    @apply appearance-none w-5 h-5 bg-indigo-500 rounded-full cursor-pointer shadow-lg hover:bg-indigo-400 transition-colors;
+    @apply appearance-none w-4 h-4 bg-gradient-to-br from-indigo-400 to-violet-500
+           rounded-full cursor-pointer shadow-lg shadow-indigo-500/30
+           hover:shadow-indigo-500/50 transition-all border-2 border-white/20;
   }
 
   .tooltip {
-    @apply absolute z-50 px-3 py-2 text-sm bg-gray-900 border border-gray-700 rounded-lg shadow-xl;
+    @apply absolute z-50 px-3 py-2 text-xs bg-gray-900/95 border border-white/10
+           rounded-lg shadow-xl backdrop-blur-sm;
+  }
+
+  /* Responsive nav */
+  .nav-item {
+    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200
+           text-gray-400 hover:text-white hover:bg-white/5;
+  }
+
+  .nav-item-active {
+    @apply bg-white/10 text-white;
+  }
+
+  /* Tartan card specific */
+  .tartan-card {
+    @apply card p-3 sm:p-4 space-y-3;
+  }
+
+  .tartan-preview {
+    @apply rounded-xl overflow-hidden bg-black/20 aspect-square
+           ring-1 ring-white/5 transition-all duration-300
+           hover:ring-white/20 hover:ring-2;
+  }
+
+  .tartan-actions {
+    @apply flex flex-wrap gap-1.5;
+  }
+
+  .tartan-action-btn {
+    @apply p-1.5 sm:p-2 rounded-lg bg-white/5 hover:bg-white/10
+           text-gray-400 hover:text-white transition-all text-xs sm:text-sm;
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 via-violet-300 to-purple-300;
   }
 
   .glow {
-    box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 60px -15px rgba(99, 102, 241, 0.4);
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 30px -10px rgba(99, 102, 241, 0.3);
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  /* Subtle texture */
+  .noise {
+    position: relative;
+  }
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - more subtle */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-900;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-700 rounded-full;
+  @apply bg-white/10 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  @apply bg-white/20;
 }
 
-/* Thin scrollbar for panels */
 .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-gray-800 rounded-full;
+  @apply bg-white/5 rounded-full;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-700;
+  @apply bg-white/10;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
+  from { opacity: 0; transform: translateX(-12px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px -5px rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 30px -5px rgba(99, 102, 241, 0.6); }
+  0%, 100% { box-shadow: 0 0 20px -5px rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 40px -5px rgba(99, 102, 241, 0.5); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-slideIn {
-  animation: slideIn 0.4s ease-out;
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Mobile-first responsive utilities */
+@media (max-width: 640px) {
+  .mobile-full {
+    width: 100%;
+  }
+
+  .mobile-stack {
+    flex-direction: column;
+  }
+
+  .mobile-hidden {
+    display: none;
+  }
+}
+
+/* Hide scrollbar on mobile but keep scrolling */
+@media (max-width: 768px) {
+  .mobile-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
