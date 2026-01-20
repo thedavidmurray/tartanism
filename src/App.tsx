@@ -7,6 +7,7 @@ import { applyMask, SHAPE_PRESETS, ShapeMaskType, ShapeMaskOptions, createDefaul
 import { GeneratorResult, ThreadStripe, YarnWeight } from './core/types';
 import { generateWIF } from './export/wif';
 import { calculateForProduct, PRODUCT_TEMPLATES, YARN_PROFILES, formatMaterialsSummary, estimateCost } from './production/yarnCalculator';
+import { useAuth } from './contexts/AuthContext';
 
 // ============================================================================
 // TYPES
@@ -574,7 +575,7 @@ function TartanMiniPreview({
   config: GeneratorConfig;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { result } = data;
+  const { result, imagePattern } = data;
   const { sett } = result;
 
   useEffect(() => {
@@ -584,11 +585,23 @@ function TartanMiniPreview({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const expanded = expandSett(sett);
     const size = 64;
     canvas.width = size;
     canvas.height = size;
 
+    // Handle image patterns (geometric, motifs, etc.)
+    if (imagePattern) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0, size, size);
+      };
+      img.src = imagePattern.imageData;
+      return;
+    }
+
+    // Regular tartan rendering
+    const expanded = expandSett(sett);
     const scale = size / expanded.length;
     const weave = WEAVE_PATTERNS[config.weaveType];
 
@@ -604,7 +617,7 @@ function TartanMiniPreview({
         ctx.fillRect(x * scale, y * scale, scale + 0.5, scale + 0.5);
       }
     }
-  }, [sett, config.weaveType]);
+  }, [sett, config.weaveType, imagePattern]);
 
   return (
     <canvas
@@ -700,13 +713,13 @@ function TartanCard({
 
   return (
     <div
-      className={`card p-4 space-y-3 animate-fadeIn ${
+      className={`card p-3 space-y-2 animate-fadeIn ${
         breedingMode ? 'cursor-pointer hover:ring-2 hover:ring-pink-500' : ''
       } ${isSelectedForBreeding ? 'ring-2 ring-pink-500 bg-pink-950/20' : ''}`}
       onClick={handleCardClick}
     >
       <div className="flex items-start justify-between">
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-0.5">
           {!imagePattern && sett.colors.map(code => <ColorChip key={code} code={code} />)}
           {imagePattern && (data.id.startsWith('motif-') || data.id.startsWith('geo-')) && <span className="text-xs text-gray-400">{data.result.signature.signature}</span>}
           {imagePattern && data.id.startsWith('img-') && <span className="text-xs text-gray-400">Image Pattern</span>}
@@ -866,11 +879,11 @@ function ConfigPanel({
   };
 
   return (
-    <div className="card p-6 space-y-6">
+    <div className="card p-4 space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-gray-100 mb-4">Generator Settings</h3>
+        <h3 className="text-base font-semibold text-gray-100 mb-3">Generator Settings</h3>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Batch Size</label>
             <input
@@ -5897,6 +5910,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
 // ============================================================================
 
 export default function App() {
+  const { user, loading: authLoading, isConfigured: authConfigured, signInWithGoogle, signOut } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('generator');
   const [tartans, setTartans] = useState<TartanCardData[]>([]);
   const [config, setConfig] = useState<GeneratorConfig>({
@@ -5935,6 +5949,7 @@ export default function App() {
   const [showImagePatternBuilder, setShowImagePatternBuilder] = useState(false);
   const [showIllustratedBuilder, setShowIllustratedBuilder] = useState(false);
   const [showKnittingChart, setShowKnittingChart] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Start collapsed - focus on outputs
   const [customColors, setCustomColors] = useState<CustomColor[]>(() => {
     const saved = localStorage.getItem('tartanism-custom-colors');
     return saved ? JSON.parse(saved) : [];
@@ -6365,16 +6380,16 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-950 overflow-hidden">
-      {/* Header */}
+      {/* Header - Compact */}
       <header className="flex-shrink-0 border-b border-gray-800 bg-gray-950/80 backdrop-blur z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-              <span className="text-xl font-bold">T</span>
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+              <span className="text-lg font-bold">T</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gradient">Tartanism</h1>
-              <p className="text-xs text-gray-500">The best plaid maker</p>
+              <h1 className="text-lg font-bold text-gradient leading-tight">Tartanism</h1>
+              <p className="text-[10px] text-gray-500 leading-tight">The best plaid maker</p>
             </div>
           </div>
 
@@ -6463,26 +6478,92 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
+
+            {/* Auth UI */}
+            {authConfigured && (
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-700">
+                {authLoading ? (
+                  <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse" />
+                ) : user ? (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email || 'U')}&background=6366f1&color=fff`}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full border-2 border-gray-600"
+                    />
+                    <button
+                      onClick={() => signOut()}
+                      className="text-sm text-gray-400 hover:text-white transition-colors"
+                      title="Sign out"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => signInWithGoogle()}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign in with Google
+                  </button>
+                )}
+              </div>
+            )}
           </nav>
         </div>
       </header>
 
       {/* Main Content - Fixed height with independent scroll areas */}
-      <main className="flex-1 overflow-hidden">
-        <div className="h-full max-w-7xl mx-auto px-4 py-4 grid lg:grid-cols-[320px_1fr] gap-6">
-          {/* Config Panel - Independent scroll */}
-          <aside className="overflow-y-auto pr-2 scrollbar-thin">
-            <ConfigPanel
-              config={config}
-              onChange={setConfig}
-              onGenerate={handleGenerate}
-              onOpenColorBuilder={() => setShowColorBuilder(true)}
-              customColors={customColors}
-            />
-          </aside>
+      <main className="flex-1 overflow-hidden relative">
+        {/* Floating Controls - Always visible */}
+        <div className="absolute top-2 left-2 z-30 flex items-center gap-2">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors"
+            title={sidebarCollapsed ? "Show settings" : "Hide settings"}
+          >
+            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {sidebarCollapsed ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              )}
+              {sidebarCollapsed && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />}
+            </svg>
+          </button>
+          <button
+            onClick={handleGenerate}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Roll {config.batchSize}
+          </button>
+        </div>
 
-          {/* Results Grid - Independent scroll */}
-          <section className="overflow-y-auto pl-2 scrollbar-thin">
+        <div className={`h-full max-w-7xl mx-auto px-3 py-2 ${sidebarCollapsed ? '' : 'grid md:grid-cols-[260px_1fr] gap-4'}`}>
+          {/* Config Panel - Collapsible */}
+          {!sidebarCollapsed && (
+            <aside className="overflow-y-auto pr-1 scrollbar-thin">
+              <ConfigPanel
+                config={config}
+                onChange={setConfig}
+                onGenerate={handleGenerate}
+                onOpenColorBuilder={() => setShowColorBuilder(true)}
+                customColors={customColors}
+              />
+            </aside>
+          )}
+
+          {/* Results Grid - Full width when sidebar collapsed */}
+          <section className={`overflow-y-auto scrollbar-thin ${sidebarCollapsed ? 'pt-12' : 'pl-2'}`}>
             {/* Breeding Panel */}
             {breedingMode && (
               <div className="mb-6 p-4 bg-gradient-to-r from-pink-900/30 to-purple-900/30 rounded-xl border border-pink-800/50">
@@ -6591,7 +6672,7 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {tartans.map(data => (
                   <TartanCard
                     key={data.id}
@@ -6618,12 +6699,9 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 mt-16">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-          <p>Create mathematically valid tartans following Scottish Register conventions.</p>
-          <p className="mt-2">Built for the love of plaid.</p>
-        </div>
+      {/* Minimal Footer - Single line, no padding */}
+      <footer className="flex-shrink-0 h-6 flex items-center justify-center border-t border-gray-800/50 text-[10px] text-gray-600">
+        Scottish Register conventions • Built for plaid
       </footer>
 
       {/* Modals */}
