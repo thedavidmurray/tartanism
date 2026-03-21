@@ -9,6 +9,17 @@
     --color-primary: 220 100% 50%;
     --color-secondary: 160 100% 40%;
     --color-accent: 280 80% 60%;
+
+    /* Tartanism warm dark palette */
+    --t-charcoal: #181311;
+    --t-charcoal-mid: #231c19;
+    --t-wool: #2b2320;
+    --t-wool-hover: #362d29;
+    --t-wool-border: #3d3430;
+    --t-parchment: #e8dfd2;
+    --t-cream: #f2ebe0;
+    --t-cream-muted: #bfb5a6;
+    --t-cream-dim: #7a7066;
   }
 
   html {
@@ -20,6 +31,11 @@
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     background: linear-gradient(180deg, #0a0a0f 0%, #0d0d14 50%, #0a0a0f 100%);
     min-height: 100vh;
+  }
+
+  /* New routes use the warm dark background directly */
+  .dark {
+    background: var(--t-charcoal);
   }
 }
 
