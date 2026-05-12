@@ -204,6 +204,28 @@ function getColorIndex(colorTable: RGBSimple[], colorCode: string, colorCodes: s
 // WIF PARSING (for import)
 // ============================================================================
 
+/**
+ * Download a WIF file in the browser
+ */
+export function downloadWIF(
+  content: string,
+  filename: string
+): void {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.wif') ? filename : `${filename}.wif`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// WIF PARSING (for import)
+// ============================================================================
+
 export interface ParsedWIF {
   title?: string;
   colors: RGBSimple[];

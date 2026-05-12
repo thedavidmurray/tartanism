@@ -1,38 +1,53 @@
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 
-// Lazy load pages to keep initial bundle lean
+// GitHub Pages SPA redirect handler - reads _p query param and redirects to the correct route
+function SPARedirect() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const redirectPath = params.get('_p');
+
+  if (redirectPath) {
+    // Clean up the URL by removing the _p param and navigating to the actual path
+    const cleanPath = decodeURIComponent(redirectPath);
+    return <Navigate to={cleanPath} replace />;
+  }
+  return null;
+}
+
+// Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const PatternDetail = lazy(() => import('./pages/PatternDetail'));
-const PatternModal = lazy(() => import('./pages/PatternModal'));
+const GeneratePage = lazy(() => import('./pages/GeneratePage'));
 const OldApp = lazy(() => import('./OldApp'));
 
 // ---------------------------------------------------------------------------
-// Navigation bar -- only shows on new routes (hidden on /studio)
+// Navigation -- minimal top bar, premium ecommerce style
 // ---------------------------------------------------------------------------
 
 function Nav() {
   const location = useLocation();
 
-  // Don't render nav on the studio route -- OldApp has its own nav
+  // Don't render nav on the legacy studio route
   if (location.pathname.startsWith('/studio')) return null;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50
-                    bg-[var(--t-charcoal)]/90 backdrop-blur-md
-                    border-b border-[var(--t-wool-border)]">
-      <div className="max-w-5xl mx-auto px-4 h-12 flex items-center justify-between">
+    <nav
+      className="sticky top-0 z-50 bg-[var(--bg)]/95 backdrop-blur-md"
+      style={{ boxShadow: '0 1px 0 0 rgba(0,0,0,0.06)' }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         <Link
-          to="/"
-          className="text-sm font-bold text-[var(--t-cream)] tracking-wide"
+          to="/library"
+          className="text-lg font-serif tracking-tight text-[var(--text)]"
         >
           Tartanism
         </Link>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-6">
           <NavLink to="/library">Library</NavLink>
-          <NavLink to="/studio">Studio</NavLink>
+          <NavLink to="/generate">Studio</NavLink>
         </div>
       </div>
     </nav>
@@ -46,12 +61,15 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <Link
       to={to}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
-                  ${
-                    isActive
-                      ? 'bg-[var(--t-wool)] text-[var(--t-cream)]'
-                      : 'text-[var(--t-cream-muted)] hover:text-[var(--t-cream)] hover:bg-[var(--t-wool)]/50'
-                  }`}
+      className={`text-sm ${isActive
+        ? 'text-[var(--text)] font-medium'
+        : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
+      }`}
+      style={{
+        transitionProperty: 'color',
+        transitionDuration: '200ms',
+        transitionTimingFunction: 'ease-out',
+      }}
     >
       {children}
     </Link>
@@ -64,68 +82,35 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-[var(--t-parchment)]/30 border-t-[var(--t-parchment)]
-                      rounded-full animate-spin" />
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-5 h-5 rounded-full animate-spin"
+        style={{
+          border: '2px solid var(--border)',
+          borderTopColor: 'var(--text-tertiary)',
+        }}
+      />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Router outlet -- handles background-location modal pattern
-// ---------------------------------------------------------------------------
-
-function RouterOutlet() {
-  const location = useLocation();
-  // background is set by LibraryPage when navigating to a pattern
-  const background = (location.state as { background?: Location } | null)?.background;
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (background) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [background]);
-
-  return (
-    <>
-      {/* Primary routes -- when background exists, render the background location */}
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes location={background || location}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/library" element={<LibraryPage />} />
-          <Route path="/pattern/:id" element={<PatternDetail />} />
-          <Route path="/studio" element={<OldApp />} />
-        </Routes>
-      </Suspense>
-
-      {/* Overlay modal -- only rendered when background-location is active */}
-      {background && (
-        <Suspense fallback={null}>
-          <Routes>
-            <Route path="/pattern/:id" element={<PatternModal />} />
-          </Routes>
-        </Suspense>
-      )}
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// App Shell -- the root layout with routing
+// App Shell
 // ---------------------------------------------------------------------------
 
 export default function AppShell() {
   return (
-    <BrowserRouter basename="/tartanism">
-      <div className="dark min-h-screen bg-[var(--t-charcoal)] text-[var(--t-cream)]">
+    <BrowserRouter basename="/tartanism/app">
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
         <Nav />
-        <RouterOutlet />
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<><SPARedirect /><HomePage /></>} />
+            <Route path="/library" element={<><SPARedirect /><LibraryPage /></>} />
+            <Route path="/pattern/:id" element={<><SPARedirect /><PatternDetail /></>} />
+            <Route path="/generate" element={<><SPARedirect /><GeneratePage /></>} />
+            <Route path="/studio" element={<><SPARedirect /><OldApp /></>} />
+          </Routes>
+        </Suspense>
       </div>
     </BrowserRouter>
   );
