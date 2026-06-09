@@ -4,6 +4,7 @@ import type { TartanRecord } from '../data/tartanLibrary';
 import { getColor } from '../core/colors';
 import { parseThreadcount } from '../core/sett';
 import { renderTartanToCanvas } from '../utils/renderTartan';
+import { estimatePrice } from '../production/pricing';
 
 interface TartanCardProps {
   tartan: TartanRecord;
@@ -61,6 +62,7 @@ export default function TartanCard({ tartan, threadcount, to }: TartanCardProps)
   const [visible, setVisible] = useState(false);
   const [rendered, setRendered] = useState(false);
   const tc = threadcount || tartan.threadcount;
+  const price = useMemo(() => estimatePrice(tc), [tc]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -132,30 +134,42 @@ export default function TartanCard({ tartan, threadcount, to }: TartanCardProps)
           />
         </div>
 
-        {/* Hover overlay with weave info */}
+        {/* Hover overlay with quick-view CTA */}
         <div
-          className="absolute inset-0 flex items-end p-3 pointer-events-none opacity-0 group-hover:opacity-100"
+          className="absolute inset-0 hidden sm:flex flex-col items-center justify-end p-3 pointer-events-none opacity-0 group-hover:opacity-100"
           style={{
-            background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.45), transparent 55%)',
             transitionProperty: 'opacity',
             transitionDuration: '300ms',
           }}
         >
-          <span className="text-white/90 text-xs font-mono">2/2 Twill</span>
+          <span
+            className="w-full text-center py-2 rounded-lg text-xs font-medium tracking-wide
+                       bg-white/95 text-[var(--text)] backdrop-blur-sm"
+            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+          >
+            View Pattern
+          </span>
         </div>
       </div>
 
-      {/* Metadata -- concentric radius: outer 12px, padding 8px, inner content flush */}
+      {/* Metadata -- product card style: name, category, price */}
       <div className="mt-2.5 px-0.5 space-y-0.5">
         <h3 className="text-sm font-medium text-[var(--text)] truncate font-serif">
           {tartan.name}
         </h3>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono text-[var(--text-tertiary)] uppercase tracking-wider">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-mono text-[var(--text-tertiary)] uppercase tracking-wider truncate">
             {tartan.category}
           </span>
           <ColorDots threadcount={tc} />
         </div>
+        {price && (
+          <p className="text-xs text-[var(--text-secondary)] pt-0.5">
+            From <span className="font-medium text-[var(--text)] tabular-nums">${price.printedPerYard}</span>
+            <span className="text-[var(--text-tertiary)]"> / yard</span>
+          </p>
+        )}
       </div>
     </Link>
   );

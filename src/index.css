@@ -94,6 +94,11 @@
   }
 }
 
+/* Hide native disclosure marker on accordion summaries (Safari) */
+summary::-webkit-details-marker {
+  display: none;
+}
+
 /* Scrollbar - subtle */
 ::-webkit-scrollbar {
   width: 6px;

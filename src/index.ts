@@ -66,6 +66,13 @@ export {
   createRandom,
 } from './core/generator';
 
+// Breeding
+export {
+  breedTartans,
+  BREED_STRATEGIES,
+} from './core/breeding';
+export type { BredResult, BreedStrategy } from './core/breeding';
+
 // Optical illusion shapes
 export {
   getMaskFunction,

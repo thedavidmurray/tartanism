@@ -37,7 +37,7 @@ function Nav() {
       className="sticky top-0 z-50 bg-[var(--bg)]/95 backdrop-blur-md"
       style={{ boxShadow: '0 1px 0 0 rgba(0,0,0,0.06)' }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         <Link
           to="/library"
           className="text-lg font-serif tracking-tight text-[var(--text)]"
@@ -77,6 +77,45 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
+// Footer -- storefront style
+// ---------------------------------------------------------------------------
+
+function Footer() {
+  const location = useLocation();
+  if (location.pathname.startsWith('/studio')) return null;
+
+  return (
+    <footer className="mt-16" style={{ boxShadow: '0 -1px 0 0 var(--border)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row sm:items-start justify-between gap-8">
+        <div className="max-w-xs">
+          <p className="text-lg font-serif text-[var(--text)]">Tartanism</p>
+          <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed" style={{ textWrap: 'pretty' } as React.CSSProperties}>
+            Authentic Scottish tartans and a design studio for weaving your own.
+            Export patterns for printing, looms, or custom fabric.
+          </p>
+        </div>
+        <div className="flex gap-12">
+          <div className="space-y-2">
+            <p className="text-xs font-mono uppercase tracking-widest text-[var(--text-tertiary)]">Shop</p>
+            <Link to="/library" className="block text-sm text-[var(--text-secondary)] hover:text-[var(--text)]">Library</Link>
+            <Link to="/generate" className="block text-sm text-[var(--text-secondary)] hover:text-[var(--text)]">Design Studio</Link>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-mono uppercase tracking-widest text-[var(--text-tertiary)]">Tools</p>
+            <Link to="/studio" className="block text-sm text-[var(--text-secondary)] hover:text-[var(--text)]">Legacy Studio</Link>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+        <p className="text-xs text-[var(--text-tertiary)]">
+          Tartanism — an Edgeless Lab project
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Loading fallback
 // ---------------------------------------------------------------------------
 
@@ -111,6 +150,7 @@ export default function AppShell() {
             <Route path="/studio" element={<><SPARedirect /><OldApp /></>} />
           </Routes>
         </Suspense>
+        <Footer />
       </div>
     </BrowserRouter>
   );
