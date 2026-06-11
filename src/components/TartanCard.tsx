@@ -166,7 +166,7 @@ export default function TartanCard({ tartan, threadcount, to }: TartanCardProps)
         </div>
         {price && (
           <p className="text-xs text-[var(--text-secondary)] pt-0.5">
-            From <span className="font-medium text-[var(--text)] tabular-nums">${price.printedPerYard}</span>
+            From <span className="font-medium text-[var(--text)] tabular-nums">${price.wovenPerYard}</span>
             <span className="text-[var(--text-tertiary)]"> / yard</span>
           </p>
         )}
