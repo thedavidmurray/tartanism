@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { generateTartan, generateVariations, DEFAULT_CONSTRAINTS, CONSTRAINT_PRESETS } from '../core/generator';
 import { parseThreadcount, toThreadcountString, generateSignatures } from '../core/sett';
-import { breedTartans } from '../core/breeding';
+import { breedTartans, type BredResult } from '../core/breeding';
 import { renderTartanToCanvas } from '../utils/renderTartan';
 import type { GeneratorResult, GeneratorConstraints, WeaveType } from '../core/types';
 import WeaveSelector from '../components/WeaveSelector';
@@ -276,7 +276,7 @@ export default function GeneratePage() {
   // Breeding (two-parent crossover)
   const [breedMode, setBreedMode] = useState(false);
   const [breedParents, setBreedParents] = useState<[number | null, number | null]>([null, null]);
-  const [offspring, setOffspring] = useState<GeneratorResult[]>([]);
+  const [offspring, setOffspring] = useState<BredResult[]>([]);
 
   // History + saved
   const [history, setHistory] = useState<GeneratorResult[]>([]);
@@ -437,7 +437,7 @@ export default function GeneratePage() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
 
         {/* Header row */}
         <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
@@ -600,124 +600,24 @@ export default function GeneratePage() {
                     Breed again
                   </button>
                 </div>
-                <div className="grid grid-cols-4 gap-2 stagger-grid">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 stagger-grid">
                   {offspring.map((r, i) => (
                     <SwatchCard
                       key={`off-${r.seed}-${i}`}
                       result={r}
                       size={160}
                       onClick={() => promoteOffspring(r)}
-                      label={['interleave', 'color swap', 'reverse swap', 'splice'][i % 4]}
+                      label={r.strategy}
                     />
                   ))}
                 </div>
                 <p className="text-xs text-[var(--text-tertiary)]" style={{ textWrap: 'pretty' } as React.CSSProperties}>
-                  Tap an offspring to add it to the grid. Each uses a different crossover strategy.
+                  Offspring inherit each parent&apos;s dominant and accent colors. Tap one to add it to the grid,
+                  or breed again for a fresh litter from the same parents.
                 </p>
               </div>
             )}
 
-            {/* History + Saved -- tab interface */}
-            <div className="pt-4" style={{ borderTop: '1px solid var(--border)' }} id="history-section">
-              <div className="flex gap-1 mb-4" role="tablist">
-                <button
-                  role="tab"
-                  aria-selected={activeTab === 'history'}
-                  onClick={() => setActiveTab(activeTab === 'history' ? 'none' : 'history')}
-                  className="px-4 py-2 rounded-xl text-xs font-medium min-h-[40px]"
-                  style={{
-                    background: activeTab === 'history' ? 'var(--accent)' : 'var(--bg-card)',
-                    color: activeTab === 'history' ? 'white' : 'var(--text-secondary)',
-                    boxShadow: activeTab === 'history' ? undefined : 'inset 0 0 0 1px var(--border)',
-                    transitionProperty: 'background-color, color, box-shadow',
-                    transitionDuration: '200ms',
-                    transitionTimingFunction: 'ease-out',
-                  }}
-                >
-                  History <span className="tabular-nums">({history.length})</span>
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={activeTab === 'saved'}
-                  onClick={() => setActiveTab(activeTab === 'saved' ? 'none' : 'saved')}
-                  className="px-4 py-2 rounded-xl text-xs font-medium min-h-[40px]"
-                  style={{
-                    background: activeTab === 'saved' ? 'var(--accent)' : 'var(--bg-card)',
-                    color: activeTab === 'saved' ? 'white' : 'var(--text-secondary)',
-                    boxShadow: activeTab === 'saved' ? undefined : 'inset 0 0 0 1px var(--border)',
-                    transitionProperty: 'background-color, color, box-shadow',
-                    transitionDuration: '200ms',
-                    transitionTimingFunction: 'ease-out',
-                  }}
-                >
-                  Saved <span className="tabular-nums">({saved.length})</span>
-                </button>
-              </div>
-
-              {/* History grid */}
-              {activeTab === 'history' && (
-                <div className="space-y-2 animate-fadeIn">
-                  {history.length === 0 ? (
-                    <p className="text-sm text-[var(--text-tertiary)] py-6 text-center">
-                      Generate some tartans first.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {history.map((r, i) => (
-                        <SwatchCard
-                          key={`hist-${r.seed}-${i}`}
-                          result={r}
-                          size={160}
-                          onClick={() => {
-                            setBatch(prev => {
-                              const next = [...prev];
-                              next[activeIndex] = r;
-                              return next;
-                            });
-                          }}
-                          className="w-full"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    Tap any to load into the selected grid slot.
-                  </p>
-                </div>
-              )}
-
-              {/* Saved grid */}
-              {activeTab === 'saved' && (
-                <div className="space-y-2 animate-fadeIn">
-                  {saved.length === 0 ? (
-                    <p className="text-sm text-[var(--text-tertiary)] py-6 text-center" style={{ textWrap: 'balance' } as React.CSSProperties}>
-                      No saved tartans yet. Select a tartan and tap the star to save.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {saved.map((r, i) => (
-                        <SwatchCard
-                          key={`saved-${r.seed}-${i}`}
-                          result={r}
-                          size={160}
-                          onClick={() => {
-                            setBatch(prev => {
-                              const next = [...prev];
-                              next[activeIndex] = r;
-                              return next;
-                            });
-                          }}
-                          className="w-full"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    Saved tartans persist across sessions. Tap to load.
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Detail sidebar */}
@@ -734,6 +634,108 @@ export default function GeneratePage() {
               onSave={toggleSave}
               isSaved={isSaved}
             />
+          )}
+        </div>
+
+        {/* History + Saved -- tab interface, full width below the workbench */}
+        <div className="mt-8 pt-4" style={{ borderTop: '1px solid var(--border)' }} id="history-section">
+          <div className="flex gap-1 mb-4" role="tablist">
+            <button
+              role="tab"
+              aria-selected={activeTab === 'history'}
+              onClick={() => setActiveTab(activeTab === 'history' ? 'none' : 'history')}
+              className="px-4 py-2 rounded-xl text-xs font-medium min-h-[40px]"
+              style={{
+                background: activeTab === 'history' ? 'var(--accent)' : 'var(--bg-card)',
+                color: activeTab === 'history' ? 'white' : 'var(--text-secondary)',
+                boxShadow: activeTab === 'history' ? undefined : 'inset 0 0 0 1px var(--border)',
+                transitionProperty: 'background-color, color, box-shadow',
+                transitionDuration: '200ms',
+                transitionTimingFunction: 'ease-out',
+              }}
+            >
+              History <span className="tabular-nums">({history.length})</span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'saved'}
+              onClick={() => setActiveTab(activeTab === 'saved' ? 'none' : 'saved')}
+              className="px-4 py-2 rounded-xl text-xs font-medium min-h-[40px]"
+              style={{
+                background: activeTab === 'saved' ? 'var(--accent)' : 'var(--bg-card)',
+                color: activeTab === 'saved' ? 'white' : 'var(--text-secondary)',
+                boxShadow: activeTab === 'saved' ? undefined : 'inset 0 0 0 1px var(--border)',
+                transitionProperty: 'background-color, color, box-shadow',
+                transitionDuration: '200ms',
+                transitionTimingFunction: 'ease-out',
+              }}
+            >
+              Saved <span className="tabular-nums">({saved.length})</span>
+            </button>
+          </div>
+
+          {/* History grid */}
+          {activeTab === 'history' && (
+            <div className="space-y-2 animate-fadeIn">
+              {history.length === 0 ? (
+                <p className="text-sm text-[var(--text-tertiary)] py-6 text-center">
+                  Generate some tartans first.
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+                  {history.map((r, i) => (
+                    <SwatchCard
+                      key={`hist-${r.seed}-${i}`}
+                      result={r}
+                      size={160}
+                      onClick={() => {
+                        setBatch(prev => {
+                          const next = [...prev];
+                          next[activeIndex] = r;
+                          return next;
+                        });
+                      }}
+                      className="w-full"
+                    />
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-[var(--text-tertiary)]">
+                Tap any to load into the selected grid slot.
+              </p>
+            </div>
+          )}
+
+          {/* Saved grid */}
+          {activeTab === 'saved' && (
+            <div className="space-y-2 animate-fadeIn">
+              {saved.length === 0 ? (
+                <p className="text-sm text-[var(--text-tertiary)] py-6 text-center" style={{ textWrap: 'balance' } as React.CSSProperties}>
+                  No saved tartans yet. Select a tartan and tap the star to save.
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+                  {saved.map((r, i) => (
+                    <SwatchCard
+                      key={`saved-${r.seed}-${i}`}
+                      result={r}
+                      size={160}
+                      onClick={() => {
+                        setBatch(prev => {
+                          const next = [...prev];
+                          next[activeIndex] = r;
+                          return next;
+                        });
+                      }}
+                      className="w-full"
+                    />
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-[var(--text-tertiary)]">
+                Saved tartans persist across sessions. Tap to load.
+              </p>
+            </div>
           )}
         </div>
       </div>

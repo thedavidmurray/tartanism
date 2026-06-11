@@ -1,109 +1,194 @@
 /**
- * Tartan Breeding: crossover two parent setts to produce offspring.
+ * Tartan Breeding: genetic crossover of two parent setts.
  *
- * Every offspring is unique. Each uses a random blend of both parents'
- * stripes, colors, and proportions. No two calls produce the same result.
+ * Offspring are designed to stay recognizable as children of their parents:
  *
- * Strategies (applied with randomization):
- * 1. Random interleave: each stripe slot randomly picks from P1 or P2
- * 2. Structure swap + color jitter: one parent's structure, other's colors, with random perturbation
- * 3. Full random crossover: each stripe's color and count independently sampled from either parent
- * 4. Splice: random cut point, P1 left of cut, P2 right of cut
+ * - Colors are inherited by *role* (ground color, secondary blocks, accent
+ *   lines, ranked by thread usage) instead of being shuffled at random, so a
+ *   child keeps each parent's visual balance.
+ * - Thread counts are quantized to even numbers and adjacent same-color
+ *   stripes are merged, matching real threadcount conventions.
+ * - Results are deduplicated by signature, so a brood of 8 is 8 distinct
+ *   designs. Later attempts mutate harder to keep filling the brood.
+ * - An optional seed makes a brood reproducible; "breed again" passes a new
+ *   seed to get a genuinely fresh litter from the same parents.
+ *
+ * Strategies:
+ * 1. blend:        P1's structure with a palette woven from both parents
+ * 2. palette swap: P1's structure dressed in P2's colors (role-mapped)
+ * 3. structure swap: P2's structure dressed in P1's colors (role-mapped)
+ * 4. splice:       front half of P1 joined to back half of P2
  */
 
-import { Sett, GeneratorResult } from './types';
+import { Sett, ThreadStripe, GeneratorResult } from './types';
 import { parseThreadcount, generateSignatures } from './sett';
 import { DEFAULT_CONSTRAINTS } from './generator';
 
+export const BREED_STRATEGIES = ['blend', 'palette swap', 'structure swap', 'splice'] as const;
+export type BreedStrategy = (typeof BREED_STRATEGIES)[number];
+
+export interface BredResult extends GeneratorResult {
+  strategy: BreedStrategy;
+}
+
+interface Gene {
+  color: string;
+  count: number;
+}
+
 function seededRng(seed: number) {
   // Mulberry32
-  return function() {
-    let t = seed += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-export function breedTartans(p1: Sett, p2: Sett, count: number = 8): GeneratorResult[] {
-  const offspring: GeneratorResult[] = [];
-  const allColors = [...new Set([...p1.colors, ...p2.colors])];
-  const baseSeed = Date.now() + Math.floor(Math.random() * 1000000);
+/** Colors ranked by total thread usage, most dominant first. */
+function colorRoles(sett: Sett): string[] {
+  const usage: Record<string, number> = {};
+  for (const s of sett.stripes) usage[s.color] = (usage[s.color] || 0) + s.count;
+  return Object.entries(usage)
+    .sort((a, b) => b[1] - a[1])
+    .map(([color]) => color);
+}
 
-  for (let i = 0; i < count; i++) {
-    const seed = baseSeed + i * 7919; // prime spacing
-    const rng = seededRng(seed);
-    const childStripes: { color: string; count: number; isPivot?: boolean }[] = [];
-    const strategy = i % 4;
+/**
+ * Map each of `structure`'s colors onto `palette` by dominance rank:
+ * ground color -> ground color, first accent -> first accent, and so on.
+ * Extra roles clamp to the palette's last (most accent-like) color.
+ */
+function roleMap(structure: Sett, palette: string[]): Record<string, string> {
+  const roles = colorRoles(structure);
+  const map: Record<string, string> = {};
+  roles.forEach((color, i) => {
+    map[color] = palette[Math.min(i, palette.length - 1)] ?? color;
+  });
+  return map;
+}
 
-    if (strategy === 0) {
-      // Random interleave: for each slot, randomly pick P1 or P2
-      const len = Math.max(p1.stripes.length, p2.stripes.length);
-      for (let j = 0; j < len; j++) {
-        const useP1 = rng() > 0.5;
-        const parent = useP1 ? p1 : p2;
-        const other = useP1 ? p2 : p1;
-        if (j < parent.stripes.length) {
-          const s = parent.stripes[j];
-          // Occasionally swap color from the other parent
-          const color = rng() > 0.7 && other.colors.length > 0
-            ? other.colors[Math.floor(rng() * other.colors.length)]
-            : s.color;
-          // Slight count perturbation
-          const countJitter = Math.round((rng() - 0.5) * 8);
-          const count = Math.max(2, s.count + countJitter);
-          childStripes.push({ color, count });
-        }
-      }
-    } else if (strategy === 1) {
-      // P1 structure with P2 colors, randomly shuffled + count jitter
-      const shuffledColors = [...p2.colors].sort(() => rng() - 0.5);
-      p1.stripes.forEach((stripe, idx) => {
-        const color = shuffledColors[idx % shuffledColors.length];
-        const countJitter = Math.round((rng() - 0.5) * 6);
-        childStripes.push({ color, count: Math.max(2, stripe.count + countJitter) });
-      });
-    } else if (strategy === 2) {
-      // P2 structure with P1 colors, randomly shuffled + count jitter
-      const shuffledColors = [...p1.colors].sort(() => rng() - 0.5);
-      p2.stripes.forEach((stripe, idx) => {
-        const color = shuffledColors[idx % shuffledColors.length];
-        const countJitter = Math.round((rng() - 0.5) * 6);
-        childStripes.push({ color, count: Math.max(2, stripe.count + countJitter) });
-      });
+const evenize = (n: number) => Math.max(2, Math.round(n / 2) * 2);
+
+/** Merge adjacent same-color stripes, quantize counts, cap stripe count. */
+function cleanup(genes: Gene[]): Gene[] {
+  const merged: Gene[] = [];
+  for (const g of genes) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.color === g.color) {
+      prev.count += g.count;
     } else {
-      // Splice: random cut point, P1 left, P2 right, with mutations
-      const cutP1 = Math.floor(rng() * p1.stripes.length);
-      const cutP2 = Math.floor(rng() * p2.stripes.length);
-      const left = p1.stripes.slice(0, cutP1 + 1);
-      const right = p2.stripes.slice(cutP2);
-
-      [...left, ...right].forEach(s => {
-        // Random color swap from the combined palette
-        const color = rng() > 0.6
-          ? allColors[Math.floor(rng() * allColors.length)]
-          : s.color;
-        const countJitter = Math.round((rng() - 0.5) * 4);
-        childStripes.push({ color, count: Math.max(2, s.count + countJitter) });
-      });
+      merged.push({ ...g });
     }
+  }
+  return merged
+    .slice(0, 16)
+    .map((g) => ({ color: g.color, count: evenize(g.count) }));
+}
 
-    if (childStripes.length < 2) continue;
+/** P1's structure with a palette interleaved from both parents' roles. */
+function blend(p1: Sett, p2: Sett): Gene[] {
+  const r1 = colorRoles(p1);
+  const r2 = colorRoles(p2);
+  const palette: string[] = [];
+  for (let i = 0; i < Math.max(r1.length, r2.length); i++) {
+    const pick = i % 2 === 0 ? r1[i] ?? r2[i] : r2[i] ?? r1[i];
+    if (pick && !palette.includes(pick)) palette.push(pick);
+  }
+  const map = roleMap(p1, palette);
+  return p1.stripes.map((s) => ({ color: map[s.color], count: s.count }));
+}
 
-    // Mark pivots for symmetry
-    childStripes[0].isPivot = true;
-    childStripes[childStripes.length - 1].isPivot = true;
+/** `structure`'s stripes dressed in `palette` parent's colors, by role. */
+function paletteSwap(structure: Sett, palette: Sett): Gene[] {
+  const map = roleMap(structure, colorRoles(palette));
+  return structure.stripes.map((s) => ({ color: map[s.color], count: s.count }));
+}
 
-    const tc = childStripes
-      .map(s => `${s.color}${s.isPivot ? '/' : ''}${s.count}`)
+/**
+ * Front of P1 joined to back of P2 at randomized cut points, then scaled
+ * toward the parents' average sett size so the child doesn't balloon.
+ */
+function splice(p1: Sett, p2: Sett, rng: () => number): Gene[] {
+  const cut1 = 1 + Math.floor(rng() * Math.max(1, p1.stripes.length - 1));
+  const cut2 = Math.floor(rng() * Math.max(1, p2.stripes.length - 1));
+  const genes = [...p1.stripes.slice(0, cut1), ...p2.stripes.slice(cut2)].map(
+    (s) => ({ color: s.color, count: s.count })
+  );
+  const total = genes.reduce((sum, g) => sum + g.count, 0);
+  const target = (p1.totalThreads + p2.totalThreads) / 2;
+  const scale = total > 0 ? target / total : 1;
+  return genes.map((g) => ({ color: g.color, count: g.count * scale }));
+}
+
+/** Gentle mutation: occasional count jitter, rare accent recolor. */
+function mutate(genes: Gene[], sharedPalette: string[], rng: () => number, strength: number): Gene[] {
+  return genes.map((g, i) => {
+    let { color, count } = g;
+    if (rng() < strength) {
+      count = count * (1 + (rng() - 0.5) * 0.5);
+    }
+    // Never recolor the opening (ground) stripe; keeps lineage readable
+    if (i > 0 && rng() < strength * 0.4) {
+      color = sharedPalette[Math.floor(rng() * sharedPalette.length)];
+    }
+    return { color, count };
+  });
+}
+
+export function breedTartans(
+  p1: Sett,
+  p2: Sett,
+  count: number = 8,
+  seed?: number
+): BredResult[] {
+  const offspring: BredResult[] = [];
+  const seen = new Set<string>();
+  const sharedPalette = [...new Set([...p1.colors, ...p2.colors])];
+  const baseSeed = seed ?? (Date.now() ^ Math.floor(Math.random() * 0xffffffff));
+
+  const maxAttempts = count * 5;
+  for (let attempt = 0; attempt < maxAttempts && offspring.length < count; attempt++) {
+    const strategy = BREED_STRATEGIES[attempt % BREED_STRATEGIES.length];
+    const rng = seededRng(baseSeed + attempt * 7919);
+    // Later passes mutate harder so the brood isn't near-identical pairs
+    const strength = 0.15 + 0.12 * Math.floor(attempt / BREED_STRATEGIES.length);
+
+    let genes: Gene[];
+    if (strategy === 'blend') genes = blend(p1, p2);
+    else if (strategy === 'palette swap') genes = paletteSwap(p1, p2);
+    else if (strategy === 'structure swap') genes = paletteSwap(p2, p1);
+    else genes = splice(p1, p2, rng);
+
+    genes = cleanup(mutate(genes, sharedPalette, rng, strength));
+
+    if (genes.length < 2) continue;
+    if (new Set(genes.map((g) => g.color)).size < 2) continue;
+
+    const stripes: ThreadStripe[] = genes.map((g, i) => ({
+      color: g.color,
+      count: g.count,
+      isPivot: i === 0 || i === genes.length - 1,
+    }));
+
+    const tc = stripes
+      .map((s) => `${s.color}${s.isPivot ? '/' : ''}${s.count}`)
       .join(' ');
 
     try {
       const sett = parseThreadcount(tc);
-      if (sett && sett.stripes.length > 0) {
-        const signature = generateSignatures(sett);
-        offspring.push({ sett, seed, constraints: DEFAULT_CONSTRAINTS, signature });
-      }
+      if (!sett || sett.stripes.length < 2) continue;
+      const signature = generateSignatures(sett);
+      if (seen.has(signature.signature)) continue;
+      seen.add(signature.signature);
+      offspring.push({
+        sett,
+        seed: baseSeed + attempt,
+        constraints: DEFAULT_CONSTRAINTS,
+        signature,
+        strategy,
+      });
     } catch {
       // Skip invalid offspring
     }
