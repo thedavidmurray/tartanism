@@ -9,6 +9,7 @@ import { estimatePrice } from '../production/pricing';
 import type { WeaveType } from '../core/types';
 import WeaveSelector from '../components/WeaveSelector';
 import BreedPanel from '../components/BreedPanel';
+import CrossbreedPanel from '../components/CrossbreedPanel';
 import TartanCard from '../components/TartanCard';
 
 // ---------------------------------------------------------------------------
@@ -478,12 +479,11 @@ export default function PatternDetail() {
             {price && (
               <div className="pb-6" style={{ borderBottom: '1px solid var(--border)' }}>
                 <p className="text-2xl font-serif text-[var(--text)]">
-                  <span className="tabular-nums">${price.printedPerYard}</span>
+                  <span className="tabular-nums">${price.wovenPerYard}</span>
                   <span className="text-base text-[var(--text-secondary)]"> / yard</span>
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                  Custom printed, estimated. Traditionally woven from{' '}
-                  <span className="tabular-nums">${price.wovenPerYard}</span>/yard.
+                  Custom woven to order, estimated.
                 </p>
               </div>
             )}
@@ -612,6 +612,11 @@ export default function PatternDetail() {
         {/* Variations -- "more like this" */}
         <div className="mt-12 sm:mt-16">
           <BreedPanel threadcount={tartan.threadcount} tartanName={tartan.name} />
+        </div>
+
+        {/* Crossbreed with another library tartan */}
+        <div className="mt-12 sm:mt-16">
+          <CrossbreedPanel threadcount={tartan.threadcount} tartanName={tartan.name} />
         </div>
 
         {/* Related products */}
