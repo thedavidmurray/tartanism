@@ -1,0 +1,27 @@
+{
+  "name": "tartanism-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tartanism breeder — the shipping app. Vanilla-JS engine (zero-dep ES modules) + genome/replay/persistence foundation, Vite build → Capacitor iOS. Decoupled from TartanMilady.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/engine/*.test.mjs tests/genome/*.test.mjs tests/birth/*.test.mjs tests/daily/*.test.mjs tests/ui/*.test.mjs"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/preferences": "^6.0.0",
+    "@capacitor/share": "^6.0.0"
+  },
+  "pnpm": {
+    "minimumReleaseAge": 1440
+  }
+}

@@ -29,3 +29,6 @@ coverage/
 # Temp
 *.tmp
 *.temp
+
+# Cloudflare wrangler artifacts (foreign to the Capacitor app)
+.wrangler/
