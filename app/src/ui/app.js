@@ -19,6 +19,9 @@ import { createStore } from '../store/persistence.js';
 import { createKV } from '../store/kv.js';
 import { renderInto } from './render.js';
 import { renderSharePng } from './share-frame.js';
+import { buildLoopSpec, exportLoop, renderLoopFrame } from './loop-export.js';
+import { resolveBrowserMuxerFactory } from './loop-mux.js';
+import { encodeLoopNative, isNativeLoopEncoderAvailable } from '../native/loop-encoder.js';
 import { createBirthStage } from './birth-event.js';
 import { dailyPrompt } from '../daily/prompt.js';
 import { createStreak } from '../daily/streak.js';
@@ -445,6 +448,81 @@ async function exportCard() {
   }
 }
 
+// ---- T13: looping MP4 export (WebCodecs H.264 primary → native AVAssetWriter fallback) ----
+async function exportLoopMp4() {
+  const result = cardSubject();
+  if (!result) { toast('Nothing to loop yet'); return; }
+  const base = (typeof location !== 'undefined') ? location.origin + location.pathname : 'https://tartanism.app/b';
+  const link = lastDescriptor ? base + buildHash(lastDescriptor) : base;
+  const spec = buildLoopSpec({ genome: result, link, name: result.name || null });
+
+  // one offscreen 9:16 canvas drives the whole encode.
+  const source = mkCanvas(spec.width, spec.height);
+  toast('Encoding loop…');
+  try {
+    let muxerFactory;
+    try {
+      muxerFactory = await resolveBrowserMuxerFactory();
+    } catch (e) {
+      // WebCodecs may still be probed for the fallback decision even without a muxer.
+      muxerFactory = null;
+    }
+
+    let mp4Bytes = null, filename = `tartanism-${(spec.name || result.id || 'loop')}.mp4`;
+
+    if (muxerFactory) {
+      const r = await exportLoop({
+        spec,
+        deps: { muxerFactory, getCanvas: () => source, mkCanvas },
+      });
+      if (r.ok) {
+        mp4Bytes = r.buffer;
+      } else if (r.fallback === 'native' && isNativeLoopEncoderAvailable()) {
+        await nativeLoopExport(spec, source, filename); return;
+      } else {
+        toast(r.reason ? `Loop unavailable: ${r.reason}` : 'Loop export unavailable here');
+        return;
+      }
+    } else if (isNativeLoopEncoderAvailable()) {
+      await nativeLoopExport(spec, source, filename); return;
+    } else {
+      toast('Loop export needs the muxer bundle (add mp4-muxer)');
+      return;
+    }
+
+    const blob = new Blob([mp4Bytes], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('Looping MP4 saved ⬇');
+  } catch (e) {
+    toast('Loop export failed');
+  }
+}
+
+// native (Capacitor AVAssetWriter) path — used when WKWebView lacks WebCodecs.
+async function nativeLoopExport(spec, source, filename) {
+  const ctx = source.getContext('2d');
+  const pngB64 = (canvas) => new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) return reject(new Error('toBlob null'));
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result).split(',')[1]); // strip data: prefix
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    }, 'image/png');
+  });
+  const r = await encodeLoopNative(spec, {
+    canvas: source,
+    renderFrame: (i) => renderLoopFrame(ctx, spec, i, undefined, mkCanvas),
+    canvasToPngBase64: pngB64,
+  });
+  if (r.ok) toast('Looping MP4 saved to app ⬇');
+  else toast(r.reason ? `Loop failed: ${r.reason}` : 'Loop export failed');
+}
+
 // ---- toast ----
 let toastTimer;
 function toast(msg) {
@@ -471,6 +549,8 @@ const shareBtn = $('shareBtn');
 if (shareBtn) shareBtn.addEventListener('click', doShare);
 const cardBtn = $('cardBtn');
 if (cardBtn) cardBtn.addEventListener('click', exportCard);
+const loopBtn = $('loopBtn');
+if (loopBtn) loopBtn.addEventListener('click', exportLoopMp4);
 
 // re-render canvases on resize
 let rsTimer;
