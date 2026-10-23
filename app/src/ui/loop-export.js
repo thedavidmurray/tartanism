@@ -40,9 +40,9 @@ export const LOOP_SPEC_VERSION = 1;
 // so the SAME code path still produces a valid MP4 on a headless desktop probe.
 // `mux` is the codec family string the muxer wants.
 export const CODEC_CANDIDATES = [
-  { codec: 'avc1.42E01F', mux: 'avc', h264: true },  // H.264 Constrained Baseline L3.1 — most compatible
-  { codec: 'avc1.42001F', mux: 'avc', h264: true },  // H.264 Baseline L3.1
-  { codec: 'avc1.4D401F', mux: 'avc', h264: true },  // H.264 Main L3.1
+  { codec: 'avc1.42E028', mux: 'avc', h264: true },  // H.264 Constrained Baseline L4.0: 1080×1920@30
+  { codec: 'avc1.420028', mux: 'avc', h264: true },  // Baseline L4.0
+  { codec: 'avc1.4D4028', mux: 'avc', h264: true },  // Main L4.0
   { codec: 'vp09.00.10.08', mux: 'vp9', h264: false }, // VP9 (desktop-only fallback)
   { codec: 'av01.0.04M.08', mux: 'av1', h264: false }, // AV1 (desktop-only fallback)
   { codec: 'vp8', mux: 'vp8', h264: false },           // VP8 (last resort)

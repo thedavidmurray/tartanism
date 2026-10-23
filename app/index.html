@@ -108,7 +108,9 @@
     -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%;
     background: var(--ink); border: 3px solid var(--accent); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5);
   }
-  .btns { display: flex; gap: 9px; }
+  .btns { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 7px; }
+  .btns > button { grid-column: span 2; min-width: 0; }
+  .btns > button:nth-child(n+4) { grid-column: span 3; }
   button.act {
     flex: 1; border: 1px solid var(--line); border-radius: 12px; padding: 14px 12px;
     background: var(--panel); color: var(--ink); font: inherit; font-size: 13px;
@@ -276,7 +278,7 @@
       <div class="btns">
         <button class="act breed" id="breedBtn" disabled>Breed</button>
         <button class="act" id="wildBtn">Wild ⟳</button>
-        <button class="act ghost" id="shareBtn" title="Copy a share link for this litter">Share ↗</button>
+        <button class="act ghost" id="shareBtn" title="Save and share a tartan card">Share ↗</button>
         <button class="act ghost" id="cardBtn" title="Export the before/after share card (PNG)">Card ⬇</button>
         <button class="act ghost" id="loopBtn" title="Export a seamless looping MP4 background (WebCodecs H.264)">Loop ⬇</button>
       </div>

@@ -23,18 +23,13 @@
  * @capacitor/share sheet / save-to-Photos (T21) can hand to TikTok/CapCut.
  */
 
+import { Capacitor, registerPlugin } from '@capacitor/core';
 const PLUGIN_NAME = 'LoopEncoder';
+const registeredPlugin = registerPlugin(PLUGIN_NAME);
 
-// resolve the Capacitor plugin proxy if we're inside a native shell; else null.
+// Only advertise the native fallback on an actual iOS Capacitor bridge.
 function nativePlugin() {
-  const cap = (typeof window !== 'undefined' && window.Capacitor) || null;
-  if (!cap) return null;
-  const isNative = typeof cap.isNativePlatform === 'function'
-    ? cap.isNativePlatform()
-    : !!cap.isNative;
-  if (!isNative) return null;
-  const plugin = cap.Plugins && cap.Plugins[PLUGIN_NAME];
-  return plugin || null;
+  return Capacitor.isNativePlatform() ? registeredPlugin : null;
 }
 
 export function isNativeLoopEncoderAvailable() {

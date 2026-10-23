@@ -14,12 +14,13 @@
     "vite": "^5.4.0"
   },
   "dependencies": {
-    "@capacitor/app": "^6.0.0",
-    "@capacitor/cli": "^6.0.0",
-    "@capacitor/core": "^6.0.0",
-    "@capacitor/ios": "^6.0.0",
-    "@capacitor/preferences": "^6.0.0",
-    "@capacitor/share": "^6.0.0"
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "mp4-muxer": "^5.2.2"
   },
   "pnpm": {
     "minimumReleaseAge": 1440

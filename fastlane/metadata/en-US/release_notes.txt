@@ -1,0 +1,2 @@
+- First release: generative tartan breeding, palette and motion controls, daily seeded drops, and two exports — HD still wallpaper and seamless looping 9:16 MP4.
+- All generation on-device. No account required.

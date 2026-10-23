@@ -25,6 +25,8 @@ import { encodeLoopNative, isNativeLoopEncoderAvailable } from '../native/loop-e
 import { createBirthStage } from './birth-event.js';
 import { dailyPrompt } from '../daily/prompt.js';
 import { createStreak } from '../daily/streak.js';
+import { initAppUrlOpen } from '../native/app-urlopen.js';
+import { exportMedia, exportNativeVideo } from '../native/media.js';
 
 const LITTER = 9;
 const $ = (id) => document.getElementById(id);
@@ -391,15 +393,10 @@ async function copySeed(ind) {
   catch { toast(payload); }
 }
 
-// Share the CURRENT litter as a deep link — reconstructs byte-identically on open.
+// A WKWebView's capacitor://localhost URL cannot be opened by someone else.
+// Share the actual image instead of copying an unusable local deep link.
 async function doShare() {
-  if (!lastDescriptor) return;
-  const base = (typeof location !== 'undefined')
-    ? location.origin + location.pathname
-    : 'https://tartanism.app/b';
-  const url = base + buildHash(lastDescriptor);
-  try { await navigator.clipboard.writeText(url); toast('Share link copied'); }
-  catch { toast('Link: ' + url); }
+  await exportCard();
 }
 
 // ---------------------------------------------------------------------------
@@ -432,19 +429,15 @@ async function exportCard() {
   const result = cardSubject();
   if (!result) { toast('Nothing to card yet'); return; }
   const ancestor = traceAncestor(result);
-  const base = (typeof location !== 'undefined') ? location.origin + location.pathname : 'https://tartanism.app/b';
-  const link = lastDescriptor ? base + buildHash(lastDescriptor) : base;
+  const link = 'https://edgelesslab.com/support/';
   const cardName = result.name || null;
   try {
     const { blob } = await renderSharePng(mkCanvas, { ancestor, result, gens: result.gen || 0, link, name: cardName });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `tartanism-${(cardName || result.id || 'sett')}.png`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast('Share card saved ⬇');
+    await exportMedia(blob, `tartanism-${(cardName || result.id || 'sett')}.png`, 'image');
+    toast('Card saved to Photos — share ready');
   } catch (e) {
-    toast('Card export failed');
+    console.error('Card export failed', e);
+    toast('Card export failed: ' + (e.message || e));
   }
 }
 
@@ -452,8 +445,7 @@ async function exportCard() {
 async function exportLoopMp4() {
   const result = cardSubject();
   if (!result) { toast('Nothing to loop yet'); return; }
-  const base = (typeof location !== 'undefined') ? location.origin + location.pathname : 'https://tartanism.app/b';
-  const link = lastDescriptor ? base + buildHash(lastDescriptor) : base;
+  const link = 'https://edgelesslab.com/support/';
   const spec = buildLoopSpec({ genome: result, link, name: result.name || null });
 
   // one offscreen 9:16 canvas drives the whole encode.
@@ -491,14 +483,11 @@ async function exportLoopMp4() {
     }
 
     const blob = new Blob([mp4Bytes], { type: 'video/mp4' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast('Looping MP4 saved ⬇');
+    await exportMedia(blob, filename, 'video');
+    toast('Loop saved to Photos — share ready');
   } catch (e) {
-    toast('Loop export failed');
+    console.error('Loop export failed', e);
+    toast('Loop export failed: ' + (e.message || e));
   }
 }
 
@@ -519,8 +508,10 @@ async function nativeLoopExport(spec, source, filename) {
     renderFrame: (i) => renderLoopFrame(ctx, spec, i, undefined, mkCanvas),
     canvasToPngBase64: pngB64,
   });
-  if (r.ok) toast('Looping MP4 saved to app ⬇');
-  else toast(r.reason ? `Loop failed: ${r.reason}` : 'Loop export failed');
+  if (r.ok) {
+    await exportNativeVideo(r.path);
+    toast('Loop saved to Photos — share ready');
+  } else toast(r.reason ? `Loop failed: ${r.reason}` : 'Loop export failed');
 }
 
 // ---- toast ----
@@ -610,6 +601,19 @@ async function boot() {
 }
 
 boot();
+
+// 4) Native Universal Link listener — when the app is opened via a Tartanism
+// share link, @capacitor/app fires appUrlOpen. Wire it now so the app responds.
+initAppUrlOpen({
+  onLitter: (descriptor, reconstructed) => {
+    litter = reconstructed;
+    lastDescriptor = descriptor;
+    gen = descriptor.gen || (descriptor.kind === 'bred' ? 1 : 0);
+    persistLastLitter();
+    renderLitter();
+  },
+  toast: toast,
+});
 window.__breeder = {
   get litter() { return litter; }, get kept() { return kept; }, get descriptor() { return lastDescriptor; },
   get pin() { return activePin; }, exportCard, traceAncestor,

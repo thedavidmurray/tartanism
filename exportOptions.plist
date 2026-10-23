@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>method</key><string>app-store-connect</string>
+  <key>destination</key><string>upload</string>
+  <key>teamID</key><string>9BKHLSZVGF</string>
+  <key>signingStyle</key><string>manual</string>
+  <key>signingCertificate</key><string>CFE0348C91893A6398E8D75A975BD69044FF186D</string>
+  <key>provisioningProfiles</key><dict><key>com.edgeless.tartanism</key><string>f9fde34c-bbd5-4fa3-838a-b3a25b814730</string></dict>
+  <key>manageAppVersionAndBuildNumber</key><false/>
+  <key>testFlightInternalTestingOnly</key><false/>
+  <key>uploadSymbols</key><true/>
+</dict></plist>

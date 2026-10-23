@@ -69,7 +69,7 @@ function fakeMuxerFactory(log = {}) {
   };
 }
 
-const H264 = 'avc1.42E01F';
+const H264 = 'avc1.42E028';
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
 const CHROME_UA = 'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
 
