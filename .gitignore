@@ -3,6 +3,12 @@ node_modules/
 
 # Build output
 dist/
+/build/
+/build-derived/
+/export-probe.mp4
+/tartanism-*.png
+/fastlane/profiles/
+/fastlane/report.xml
 
 # IDE
 .idea/
@@ -29,3 +35,6 @@ coverage/
 # Temp
 *.tmp
 *.temp
+
+# Cloudflare wrangler artifacts (foreign to the Capacitor app)
+.wrangler/

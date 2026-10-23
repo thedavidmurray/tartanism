@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#0a0a0b" />
+<title>Tartanism · Breeder</title>
+<style>
+  :root {
+    --bg: #0a0a0b; --panel: #121214; --panel-2: #171719; --line: #232327;
+    --ink: #ededf0; --dim: #8a8a90; --dim-2: #5a5a60;
+    --accent: #e8ff59; --accent-ink: #0a0a0b; --radius: 14px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font: 400 15px/1.4 ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(250px + var(--safe-b)); overscroll-behavior-y: contain;
+  }
+  header {
+    position: sticky; top: 0; z-index: 20; display: flex; align-items: baseline;
+    justify-content: space-between; padding: 14px 16px 12px;
+    background: linear-gradient(var(--bg) 72%, transparent); backdrop-filter: blur(6px);
+  }
+  .brand { letter-spacing: .18em; font-size: 12px; text-transform: uppercase; color: var(--ink); }
+  .brand b { color: var(--accent); font-weight: 400; }
+  .gen { font-size: 11px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; }
+  .hint { padding: 0 16px 10px; color: var(--dim-2); font-size: 11.5px; letter-spacing: .02em; }
+  .daily { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 16px 10px; padding: 8px 12px; border: 1px solid rgba(232,255,89,.22); border-radius: var(--radius); background: rgba(232,255,89,.04); }
+  .daily-prompt { font-size: 12.5px; color: var(--ink); letter-spacing: .02em; }
+  .daily-label { color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: .16em; margin-right: 6px; }
+  #dailyPrompt { color: var(--accent); }
+  .streak { flex: none; font-size: 12px; color: var(--dim); letter-spacing: .04em; white-space: nowrap; }
+  .streak b { color: var(--ink); font-weight: 600; }
+  .grid { display: grid; gap: 10px; padding: 0 12px; grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 380px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .cell {
+    position: relative; border-radius: var(--radius); overflow: hidden;
+    background: var(--panel); border: 1px solid var(--line);
+    aspect-ratio: 3 / 4; cursor: pointer; user-select: none;
+    transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+  }
+  .cell:active { transform: scale(.985); }
+  .cell canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .cell.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 8px 26px rgba(232,255,89,.12); }
+  .cell .tick {
+    position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(10,10,11,.55); border: 1px solid rgba(255,255,255,.18);
+    display: grid; place-items: center; font-size: 12px; color: transparent;
+    backdrop-filter: blur(3px); transition: all .12s ease;
+  }
+  .cell.sel .tick { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .cell .meta {
+    position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center;
+    justify-content: space-between; gap: 6px; padding: 7px 8px 8px;
+    background: linear-gradient(transparent, rgba(6,6,7,.86) 46%);
+  }
+  .seedchip {
+    font-size: 10px; letter-spacing: .04em; color: var(--ink); background: rgba(20,20,22,.7);
+    border: 1px solid var(--line); border-radius: 7px; padding: 3px 7px; max-width: 66%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .seedchip:active { color: var(--accent); }
+  .keep {
+    font-size: 13px; line-height: 1; color: var(--dim); background: rgba(20,20,22,.7);
+    border: 1px solid var(--line); border-radius: 7px; width: 26px; height: 22px;
+    display: grid; place-items: center;
+  }
+  .keep.on { color: var(--accent); border-color: var(--accent); }
+  .lin {
+    position: absolute; top: 8px; left: 8px; font-size: 9.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--dim); background: rgba(10,10,11,.5);
+    backdrop-filter: blur(3px); border: 1px solid rgba(255,255,255,.08); border-radius: 6px; padding: 2px 6px;
+  }
+  .tray-wrap { padding: 16px 0 4px; }
+  .tray-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px 8px;
+    color: var(--dim); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  }
+  .tray { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 4px; scrollbar-width: none; }
+  .tray::-webkit-scrollbar { display: none; }
+  .tray .t {
+    flex: 0 0 auto; width: 58px; height: 78px; border-radius: 10px; overflow: hidden;
+    position: relative; border: 1px solid var(--line); background: var(--panel);
+  }
+  .tray .t.sel { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
+  .tray .t canvas { width: 100%; height: 100%; display: block; }
+  .tray .empty { color: var(--dim-2); font-size: 12px; padding: 22px 16px; }
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 12px 14px calc(12px + var(--safe-b));
+    background: linear-gradient(transparent, var(--bg) 22%);
+  }
+  .panel {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 18px;
+    padding: 12px 14px 13px; box-shadow: 0 -10px 40px rgba(0,0,0,.45);
+  }
+  .dial { display: flex; align-items: center; gap: 12px; margin-bottom: 11px; }
+  .dial label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .dial output { font-size: 11px; color: var(--accent); min-width: 62px; text-align: right; letter-spacing: .05em; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; flex: 1; height: 3px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent) var(--fill,50%), var(--line) var(--fill,50%)); outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--ink); border: 3px solid var(--accent); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5);
+  }
+  .btns { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 7px; }
+  .btns > button { grid-column: span 2; min-width: 0; }
+  .btns > button:nth-child(n+4) { grid-column: span 3; }
+  button.act {
+    flex: 1; border: 1px solid var(--line); border-radius: 12px; padding: 14px 12px;
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 13px;
+    letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    transition: transform .1s ease, background .12s ease, opacity .12s;
+  }
+  button.act:active { transform: scale(.97); }
+  button.breed { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.breed:disabled { opacity: .32; filter: grayscale(.6); }
+  button.ghost { flex: 0 0 auto; padding: 14px 14px; }
+  .selcount { text-align: center; font-size: 10.5px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 9px; min-height: 12px; }
+  .selcount b { color: var(--accent); }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(266px + var(--safe-b)); transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); font-size: 11.5px; letter-spacing: .04em;
+    padding: 8px 14px; border-radius: 20px; opacity: 0; pointer-events: none;
+    transition: opacity .2s ease; z-index: 40; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ---- TRAIT PINNING (T16) ---- */
+  .cell .pinbadge {
+    position: absolute; top: 8px; left: 8px; font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--accent-ink); background: var(--accent);
+    border-radius: 6px; padding: 2px 6px 2px 5px; display: none; align-items: center; gap: 3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4); z-index: 3;
+  }
+  .cell.pinned .pinbadge { display: inline-flex; }
+  .cell.pinned { border-color: var(--accent); }
+  .cell.pinned.sel .pinbadge { top: 8px; }
+  /* a cell can hold both lineage + pin; nudge lineage down when pinned */
+  .cell.pinned .lin { top: 30px; }
+
+  .pinstatus {
+    display: none; align-items: center; justify-content: center; gap: 8px;
+    margin-bottom: 9px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent-ink); background: var(--accent); border-radius: 10px; padding: 6px 10px;
+  }
+  .pinstatus.on { display: flex; }
+  .pinstatus .x {
+    cursor: pointer; font-size: 13px; line-height: 1; border: 1px solid rgba(10,10,11,.35);
+    border-radius: 6px; width: 20px; height: 18px; display: grid; place-items: center; background: rgba(10,10,11,.08);
+  }
+
+  .pinpop-scrim {
+    position: fixed; inset: 0; z-index: 50; background: rgba(6,6,7,.62); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .pinpop-scrim.on { display: flex; }
+  .pinpop {
+    width: 100%; max-width: 320px; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 18px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .pinpop h4 { margin: 0 0 4px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); font-weight: 500; }
+  .pinpop p { margin: 0 0 14px; font-size: 11px; color: var(--dim); line-height: 1.5; letter-spacing: .01em; }
+  .pinpop .genes { display: flex; flex-direction: column; gap: 8px; }
+  .pinpop .gene {
+    text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer;
+    transition: transform .1s ease, border-color .12s ease;
+  }
+  .pinpop .gene:active { transform: scale(.98); }
+  .pinpop .gene b { color: var(--accent); font-weight: 600; letter-spacing: .04em; }
+  .pinpop .gene span { display: block; color: var(--dim); font-size: 10.5px; margin-top: 3px; letter-spacing: .01em; }
+  .pinpop .cancel {
+    margin-top: 12px; width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 11px;
+    background: transparent; color: var(--dim); font: inherit; font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; cursor: pointer;
+  }
+
+  /* ---- KEEP CEREMONY (T17) ---- */
+  .keep-ceremony-scrim {
+    position: fixed; inset: 0; z-index: 55; background: rgba(6,6,7,.72); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; padding: 28px;
+  }
+  .keep-ceremony-scrim.on { display: flex; }
+  .keep-ceremony-card {
+    width: 100%; max-width: 360px; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 20px; padding: 24px 20px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.65);
+    overflow: hidden;
+  }
+  .keep-bloom-stage {
+    display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 1; border-radius: 14px; overflow: hidden;
+    background: var(--panel); border: 1px solid var(--line);
+  }
+  .keep-bloom-stage canvas { width: 100%; height: 100%; display: block; }
+  .keep-bloom-stage.bloom-in {
+    animation: keep-bloom 0.62s cubic-bezier(.2,1.4,.32,1) both;
+  }
+  @keyframes keep-bloom {
+    from { transform: scale(.3); opacity: 0; filter: brightness(3); }
+    to   { transform: scale(1);   opacity: 1; filter: brightness(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .keep-bloom-stage.bloom-in { animation: none; }
+  }
+  .keep-form { margin-top: 18px; }
+  .keep-title {
+    margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--ink);
+    letter-spacing: .02em;
+  }
+  .keep-desc {
+    margin: 0 0 14px; font-size: 12px; color: var(--dim); line-height: 1.5; letter-spacing: .01em;
+  }
+  .keep-name-input {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 14px;
+    letter-spacing: .01em; outline: none;
+    transition: border-color .15s ease;
+  }
+  .keep-name-input:focus { border-color: var(--accent); }
+  .keep-name-input::placeholder { color: var(--dim-2); }
+  .keep-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .keep-btn {
+    flex: 1; border: 1px solid var(--line); border-radius: 12px; padding: 12px 10px;
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 12px;
+    letter-spacing: .04em; cursor: pointer; transition: transform .1s ease, background .12s ease;
+  }
+  .keep-btn:active { transform: scale(.97); }
+  .keep-btn-save {
+    background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600;
+  }
+  .keep-btn-cancel { color: var(--dim); flex: 0 0 auto; }
+  /* name chip on kept setts in collection */
+  .keep-name-chip {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 9.5px; letter-spacing: .04em; color: var(--accent-ink);
+    background: var(--accent); border-radius: 6px; padding: 2px 8px 2px 7px;
+    white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis;
+    z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Tartan<b>·</b>Breeder</div>
+    <div class="gen" id="gen">Wild · Gen 0</div>
+  </header>
+  <div class="daily" id="daily" hidden>
+    <div class="daily-prompt"><span class="daily-label">Today</span> <span id="dailyPrompt">—</span></div>
+    <div class="streak" id="streak" title="Days in a row you've bred with today's prompt">🔥 <b id="streakCount">0</b></div>
+  </div>
+  <div class="hint" id="hint">Tap the setts you like → <b style="color:var(--accent)">Breed</b>. They pass their genes to a fresh litter. Or reroll <b style="color:var(--accent)">Wild</b>.</div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="tray-wrap">
+    <div class="tray-head"><span>Collection</span><span id="trayCount">0</span></div>
+    <div class="tray" id="tray"><div class="empty">Tap ♥ on a sett to keep it here.</div></div>
+  </div>
+
+  <div class="dock">
+    <div class="panel">
+      <div class="pinstatus" id="pinstatus">
+        <span id="pinstatusText">Pinned</span>
+        <span class="x" id="pinClear" title="Unpin — restore full variation">✕</span>
+      </div>
+      <div class="selcount" id="selcount">Nothing selected</div>
+      <div class="dial">
+        <label>Wildness</label>
+        <input type="range" id="wild" min="0" max="100" value="70" />
+        <output id="wildout">0.70 · hot</output>
+      </div>
+      <div class="btns">
+        <button class="act breed" id="breedBtn" disabled>Breed</button>
+        <button class="act" id="wildBtn">Wild ⟳</button>
+        <button class="act ghost" id="shareBtn" title="Save and share a tartan card">Share ↗</button>
+        <button class="act ghost" id="cardBtn" title="Export the before/after share card (PNG)">Card ⬇</button>
+        <button class="act ghost" id="loopBtn" title="Export a seamless looping MP4 background (WebCodecs H.264)">Loop ⬇</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- KEEP CEREMONY (T17) — heart-tap → pause + bloom + name field -->
+  <div class="keep-ceremony-scrim" id="keepCeremonyScrim">
+    <div class="keep-ceremony-card" id="keepCeremonyCard">
+      <div class="keep-bloom-stage" id="keepBloomStage">
+        <canvas id="keepBloomCanvas"></canvas>
+      </div>
+      <div class="keep-form" id="keepForm" hidden>
+        <h3 class="keep-title">Keep this sett</h3>
+        <p class="keep-desc">Give it a name — it'll appear on your share card.</p>
+        <input type="text" class="keep-name-input" id="keepNameInput"
+               placeholder="A good tartan name…" maxlength="40"
+               autocomplete="off" autocorrect="off" autocapitalize="words" />
+        <div class="keep-btns">
+          <button class="keep-btn keep-btn-save" id="keepBtnSave">Keep ♥</button>
+          <button class="keep-btn keep-btn-skip" id="keepBtnSkip">Keep unnamed</button>
+          <button class="keep-btn keep-btn-cancel" id="keepBtnCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /KEEP CEREMONY -->
+
+  <div class="pinpop-scrim" id="pinScrim">
+    <div class="pinpop" id="pinPop">
+      <h4>Pin a gene</h4>
+      <p>Lock one trait of this sett so it carries into every future litter — everything else keeps breeding wild.</p>
+      <div class="genes">
+        <button class="gene" data-gene="palette"><b>Palette</b><span>Keep these colors; let structure roam.</span></button>
+        <button class="gene" data-gene="rhythm"><b>Stripe rhythm</b><span>Keep this stripe pattern; recolor freely.</span></button>
+        <button class="gene" data-gene="proportions"><b>Proportions</b><span>Keep these widths; vary color & pattern.</span></button>
+      </div>
+      <button class="cancel" id="pinCancel">Cancel</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/ui/app.js"></script>
+</body>
+</html>
